@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$USER_HOME$/Desktop/src/main/java" charset="UTF-8" />
+    <file url="file://$USER_HOME$/Desktop/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-barrage/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-barrage/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-common/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-course/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-course/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-gateway/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-gateway/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-generator/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-generator/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-miniapp/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-miniapp/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-order/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-order/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-sale/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-sale/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-user/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-user/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-web/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/ml-web/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

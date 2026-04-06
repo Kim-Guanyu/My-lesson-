@@ -1,0 +1,7 @@
+server:
+  port: 24106 # 端口号
+spring:
+  application:
+    name: ml-socket # 服务名
+  elasticsearch:
+    uris: http://192.168.211.132:9200 # 指定ES服务器，集群用数组

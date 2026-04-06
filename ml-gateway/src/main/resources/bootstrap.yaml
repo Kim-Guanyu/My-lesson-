@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: ml-gateway # 项目名称
+  cloud:
+    nacos:
+      config:
+        file-extension: yaml # NacosConfig配置文件后缀
+        server-addr: 192.168.211.132:8848 # NacosConfig配置中心地址
+        group: ml-group # NacosConfig配置文件分组
+  profiles:
+    active: dev # 当前开发环境，决定了使用NacosConfig中，哪个环境的配置文件

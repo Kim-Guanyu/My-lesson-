@@ -1,0 +1,56 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fb;
+  color: #1f2329;
+  font-family: "Segoe UI", Arial, sans-serif;
+}
+
+#app {
+  height: 100vh;
+}
+
+.app-layout {
+  height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.app-content {
+  padding: 16px;
+}
+
+.page-card {
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.table-meta {
+  margin-top: 8px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.chart-card {
+  height: 320px;
+}
+
