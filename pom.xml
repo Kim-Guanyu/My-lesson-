@@ -46,8 +46,8 @@
         <httpclient.version>4.5.13</httpclient.version>
         <redisson-spring-boot-starter.version>3.33.0</redisson-spring-boot-starter.version>
         <rocketmq-spring-boot-starter.version>2.3.3</rocketmq-spring-boot-starter.version>
-        <!-- 统一 RocketMQ 客户端版本 -->
-        <rocketmq-client.version>5.0.0</rocketmq-client.version>
+        <!-- rocketmq-spring-boot-starter 2.3.x 会调用 DefaultMQPushConsumer#setNamespaceV2，需 client >= 5.2.0 -->
+        <rocketmq-client.version>5.2.0</rocketmq-client.version>
     </properties>
 
     <dependencyManagement>

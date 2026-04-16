@@ -1,0 +1,39 @@
+<van-sticky>
+  <view class="detail-video" wx:if="{{videoSrc}}">
+    <video src="{{videoSrc}}" poster="{{videoPoster}}" controls show-center-play-btn title="{{videoTitle}}"></video>
+  </view>
+</van-sticky>
+
+<view class="detail-main" wx:if="{{course}}">
+  <van-divider dashed>课程信息</van-divider>
+  <van-cell-group inset>
+    <van-cell title="类别" value="{{course.categoryTitle}}" icon="label-o"/>
+    <van-cell title="标题" value="{{course.title}}" icon="notes-o"/>
+    <van-cell title="作者" value="{{course.author}}" icon="user-o"/>
+    <van-cell title="价格" value="{{course.price}} 元" icon="gold-coin-o"/>
+    <van-cell title="创建" value="{{course.created}}" icon="clock-o"/>
+    <van-cell title="更新" value="{{course.updated}}" icon="clock-o"/>
+  </van-cell-group>
+
+  <van-tabs active="{{ activeTab }}" bind:change="onTabChange">
+    <van-tab title="摘要">
+      <van-image wx:if="{{course.summary}}" width="100%" height="400rpx" fit="contain" src="{{MINIO_COURSE_SUMMARY}}{{course.summary}}"/>
+      <van-empty wx:else description="暂无摘要图"/>
+    </van-tab>
+    <van-tab title="目录">
+      <view class="catalog" wx:for="{{course.seasons}}" wx:key="id" wx:for-item="season">
+        <view class="season-title">{{season.title}}</view>
+        <view class="ep" wx:for="{{season.episodes}}" wx:key="id" wx:for-item="ep">· {{ep.title}}</view>
+      </view>
+    </van-tab>
+  </van-tabs>
+
+  <view class="detail-actions">
+    <van-button icon="service-o" type="default" bind:tap="chatMe">客服</van-button>
+    <van-button icon="shopping-cart-o" type="warning" bind:tap="toCart">购物车</van-button>
+    <van-button type="primary" bind:tap="addToCart">加入购物车</van-button>
+    <van-button type="danger" bind:tap="pay">立即购买</van-button>
+  </view>
+</view>
+
+<van-empty wx:else description="加载中或课程不存在"/>

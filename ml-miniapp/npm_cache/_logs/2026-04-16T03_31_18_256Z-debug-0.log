@@ -1,0 +1,50 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.4
+2 info using node@v22.22.1
+3 silly config load:file:D:\nvm\v22.22.1\node_modules\npm\npmrc
+4 silly config load:file:D:\.npmrc
+5 silly config load:file:C:\Users\xiaoyuzi\.npmrc
+6 silly config load:file:D:\ml-miniapp\npm_global\etc\npmrc
+7 verbose title npm install @vant/weapp@1.11.7
+8 verbose argv "install" "@vant/weapp@1.11.7" "--save"
+9 verbose logfile logs-max:10 dir:D:\ml-miniapp\npm_cache\_logs\2026-04-16T03_31_18_256Z-
+10 verbose logfile D:\ml-miniapp\npm_cache\_logs\2026-04-16T03_31_18_256Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 verbose stack Error: EPERM: operation not permitted, mkdir 'D:\'
+13 verbose stack     at async mkdir (node:internal/fs/promises:855:10)
+13 verbose stack     at async Arborist.reify (D:\nvm\v22.22.1\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:126:7)
+13 verbose stack     at async Install.exec (D:\nvm\v22.22.1\node_modules\npm\lib\commands\install.js:150:5)
+13 verbose stack     at async Npm.exec (D:\nvm\v22.22.1\node_modules\npm\lib\npm.js:207:9)
+13 verbose stack     at async module.exports (D:\nvm\v22.22.1\node_modules\npm\lib\cli\entry.js:74:5)
+14 error code EPERM
+15 error syscall mkdir
+16 error path D:\
+17 error errno -4048
+18 error Error: EPERM: operation not permitted, mkdir 'D:\'
+18 error     at async mkdir (node:internal/fs/promises:855:10)
+18 error     at async Arborist.reify (D:\nvm\v22.22.1\node_modules\npm\node_modules\@npmcli\arborist\lib\arborist\reify.js:126:7)
+18 error     at async Install.exec (D:\nvm\v22.22.1\node_modules\npm\lib\commands\install.js:150:5)
+18 error     at async Npm.exec (D:\nvm\v22.22.1\node_modules\npm\lib\npm.js:207:9)
+18 error     at async module.exports (D:\nvm\v22.22.1\node_modules\npm\lib\cli\entry.js:74:5) {
+18 error   errno: -4048,
+18 error   code: 'EPERM',
+18 error   syscall: 'mkdir',
+18 error   path: 'D:\\'
+18 error }
+19 error
+19 error The operation was rejected by your operating system.
+19 error It's possible that the file was already in use (by a text editor or antivirus),
+19 error or that you lack permissions to access it.
+19 error
+19 error If you believe this might be a permissions issue, please double-check the
+19 error permissions of the file and its containing directories, or try running
+19 error the command again as root/Administrator.
+20 silly unfinished npm timer reify 1776310278700
+21 verbose cwd D:\ml-miniapp
+22 verbose os Windows_NT 10.0.26200
+23 verbose node v22.22.1
+24 verbose npm  v10.9.4
+25 verbose exit -4048
+26 verbose code -4048
+27 error A complete log of this run can be found in: D:\ml-miniapp\npm_cache\_logs\2026-04-16T03_31_18_256Z-debug-0.log

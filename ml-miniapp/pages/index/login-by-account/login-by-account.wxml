@@ -1,0 +1,10 @@
+<view class="login-by-account-board">
+  <van-field label="登录账号" model:value="{{username}}" custom-class="field" right-icon="user-o" border="{{false}}" clearable placeholder="请输入账号"/>
+  <van-field label="登录密码" model:value="{{password}}" custom-class="field" type="password" right-icon="eye-o" border="{{false}}" clearable placeholder="请输入密码"/>
+  <van-button custom-class="login-btn" type="info" block bind:tap="loginByAccount">登录</van-button>
+  <van-row custom-class="link">
+    <van-col span="8" bind:tap="toRegister">注册新账号</van-col>
+    <van-col span="8" bind:tap="toLoginByPhone">手机号码登录</van-col>
+    <van-col span="8" bind:tap="toIndex">返回首页</van-col>
+  </van-row>
+</view>

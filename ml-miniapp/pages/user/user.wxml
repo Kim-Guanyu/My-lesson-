@@ -1,0 +1,48 @@
+<scroll-view scroll-y class="user-scroll" wx:if="{{user}}">
+  <view class="user-head">
+    <van-row>
+      <van-col class="avatar-col" wx:if="{{user.avatar}}" span="8">
+        <van-uploader file-list="{{avatarFile}}" bind:after-read="uploadAvatar" max-count="1" accept="image" deletable="{{false}}">
+          <van-image src="{{MINIO_AVATAR}}{{user.avatar}}" width="100" height="100" fit="cover" round/>
+        </van-uploader>
+      </van-col>
+      <van-col class="nickname-col" span="16">
+        <view>{{user.nickname}}</view>
+        <view>
+          <van-tag size="medium" mark type="primary">{{user.age}}岁</van-tag>
+          <van-tag size="medium" mark type="danger">{{user.zodiac}}</van-tag>
+          <van-tag size="medium" mark type="warning">{{user.province}}</van-tag>
+        </view>
+      </van-col>
+    </van-row>
+  </view>
+
+  <view class="operation-btn">
+    <van-grid gutter="20rpx">
+      <van-grid-item text="我的课程" url="/pages/user/video/video" icon="video" link-type="navigateTo"/>
+      <van-grid-item text="我的订单" url="/pages/user/order/order" icon="shop-o" link-type="navigateTo"/>
+      <van-grid-item text="我的收藏" url="/pages/user/follow/follow" icon="star" link-type="navigateTo"/>
+      <van-grid-item text="我的账号" url="/pages/user/account/account" icon="user" link-type="navigateTo"/>
+    </van-grid>
+  </view>
+
+  <view class="user-body">
+    <van-cell-group>
+      <van-cell title="昵称" value="{{user.nickname}}" url="{{ NICKNAME_UPDATE_URL + user.nickname }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="性别" value="{{user.gender === 2 ? '保密': user.gender === 1 ? '男': '女'}}" url="{{ GENDER_UPDATE_URL + user.gender }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="年龄" value="{{user.age}}" url="{{ AGE_UPDATE_URL + user.age }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="星座" value="{{user.zodiac}}" url="{{ ZODIAC_UPDATE_URL + user.zodiac }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="省份" value="{{user.province}}" url="{{ PROVINCE_UPDATE_URL + user.province }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="邮箱" value="{{user.email}}" url="{{ EMAIL_UPDATE_URL + user.email }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="描述" value="{{user.info}}" url="{{ INFO_UPDATE_URL + user.info }}" title-width="70px" is-link link-type="navigateTo"/>
+      <van-cell title="真实姓名" value="{{user.realname}}" title-width="70px"/>
+      <van-cell title="身份证号" value="{{user.idcard}}" title-width="70px"/>
+      <van-cell title="手机号码" value="{{user.phone}}" title-width="70px"/>
+    </van-cell-group>
+  </view>
+
+  <view class="user-foot">
+    <van-button bind:tap="logout" block type="danger">退出登录</van-button>
+  </view>
+</scroll-view>
+<view wx:else class="user-loading">加载中…</view>

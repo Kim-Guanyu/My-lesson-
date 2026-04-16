@@ -1,0 +1,12 @@
+<view class="login-by-phone-board">
+  <van-field label="手机号码" model:value="{{phone}}" custom-class="field" right-icon="user-o" border="{{false}}" clearable placeholder="请输入手机号码"/>
+  <van-field label="短信验证码" model:value="{{vcode}}" custom-class="field" center use-button-slot border="{{false}}" clearable placeholder="请输入短信验证码">
+    <van-button bind:tap="getVcode" slot="button" size="small" type="primary">发送验证码</van-button>
+  </van-field>
+  <van-button custom-class="login-btn" bind:tap="loginByPhone" type="info" block>登录</van-button>
+  <van-row custom-class="link">
+    <van-col span="8" bind:tap="toRegister">注册新账号</van-col>
+    <van-col span="8" bind:tap="toLoginByAccount">账号密码登录</van-col>
+    <van-col span="8" bind:tap="toIndex">返回首页</van-col>
+  </van-row>
+</view>

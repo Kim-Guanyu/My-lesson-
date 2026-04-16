@@ -1,0 +1,33 @@
+@import "../../../app.scss";
+
+.register-board {
+  padding: 20rpx;
+
+  .field {
+    margin: 16rpx auto;
+    border-radius: 15rpx;
+    background-color: $bg-gray;
+    border: 3rpx solid $black;
+    color: $white;
+    text-align: left;
+  }
+
+  .van-field__label {
+    color: $yellow;
+  }
+
+  .van-field__control {
+    color: $white;
+  }
+
+  .reg-btn {
+    margin-top: 30rpx;
+    border-radius: 15rpx;
+  }
+
+  .link {
+    font-size: 28rpx;
+    margin: 24rpx 10rpx;
+    color: $gray;
+  }
+}

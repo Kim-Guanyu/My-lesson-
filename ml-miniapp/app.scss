@@ -1,0 +1,36 @@
+/* 自定义颜色变量 */
+$bg-gray: #252a34;
+$black: #000000;
+$yellow: #f9ed69;
+$orange: #f08a5d;
+$white: #eaeaea;
+$gray: #757171;
+$subBlack: #232121;
+
+/* 全局样式 */
+page {
+  background-color: $bg-gray; // 背景色
+  color: $white; // 前景色
+  font-size: 35rpx; // 字体大小
+  text-align: center; // 文字居中
+  font-family: 思源黑体, 微软雅黑, Consolas, sans-serif; // 字体
+}
+
+/* 取消滚动条 */
+::-webkit-scrollbar {
+  display: none; // 隐藏滚动条
+  width: 0; // 宽度
+  height: 0; // 高度
+  color: transparent; // 颜色
+}
+
+/** vant分割线 */
+.van-divider {
+  padding: 0 20rpx; // 内边距
+}
+
+/** 底线 */
+.baseline {
+  height: 200rpx; // 高度
+  padding-bottom: 50rpx; // 下边距
+}

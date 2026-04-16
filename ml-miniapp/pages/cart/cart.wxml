@@ -1,0 +1,73 @@
+<view class="search-coupons">
+  <van-search class="search-coupons-ipt" value="{{couponsCode}}" bind:change="onCouponsCodeChange" bind:search="getCoupons" background="#252a34" shape="round" clear-trigger="always" input-align="center" placeholder="请输入口令兑换优惠卷"/>
+</view>
+
+<scroll-view class="cart-list" wx:if="{{carts && carts.length > 0}}" bindscrolltolower="pageMore" scroll-y="true">
+  <van-divider class="clear-cart-divider" bind:tap="clearCart" contentPosition="right" dashed>
+    <van-icon name="delete-o"/>
+    <text>清空购物车</text>
+  </van-divider>
+  <van-checkbox-group class="cart-card-group" value="{{ courseIds }}" bind:change="changeCourseIds">
+    <van-swipe-cell class="cart-card-cell" wx:for="{{carts}}" wx:key="id" right-width="{{ 55 }}">
+      <van-card class="cart-card" title="{{item.courseTitle}}" price="{{item.coursePrice}} 元" origin-price="{{item.coursePrice / 0.8}} 元" tag="热卖" desc="精品课程【爆款】【热卖】">
+        <view slot="thumb">
+          <van-row>
+            <van-col span="8">
+              <van-checkbox class="cart-cbx" name="{{item.fkCourseId}}" data-price="{{item.coursePrice}}"/>
+            </van-col>
+            <van-col span="8">
+              <van-image class="cart-image" src="{{MINIO_COURSE_COVER}}/{{item.courseCover}}" bind:tap="showDetail" data-course-id="{{item.fkCourseId}}" width="130" height="90"/>
+            </van-col>
+          </van-row>
+        </view>
+      </van-card>
+      <view class="cart-card-right-slot" slot="right">
+        <van-button class="remove-btn" bind:tap="removeCart" data-id="{{item.id}}" type="danger">
+          <view>移</view>
+          <view>除</view>
+        </van-button>
+      </view>
+    </van-swipe-cell>
+  </van-checkbox-group>
+</scroll-view>
+
+<van-empty class="cart-list-empty" wx:else image="error" description="暂无购物车记录"/>
+
+<view class="submit-order">
+  <van-submit-bar custom-class="submit-bar" price="{{ payAmount * 100 }}" bind:submit="openPayDialog" button-text="提交订单" tip="{{ true }}">
+    <van-tag class="coupons-btn" bind:tap="openCouponsSheet" type="warning">优惠卷详情</van-tag>
+    <view slot="tip">课程属于虚拟产品，购买后不支持退换！</view>
+  </van-submit-bar>
+</view>
+
+<van-action-sheet class="coupons-sheet" title="优惠卷详情" show="{{ couponsShow }}" bind:close="closeCouponsSheet">
+  <van-cell-group class="coupons-sheet-body" wx:if="{{coupons.id}}" inset>
+    <van-cell title="兑换口令" value="{{coupons.code}}" icon="gift-o" title-width="100rpx"/>
+    <van-cell title="标题名称" value="{{coupons.title}}" icon="notes-o" title-width="100rpx"/>
+    <van-cell title="优惠金额" value="减免 {{coupons.cpPrice}} 元" icon="coupon-o" title-width="100rpx"/>
+    <van-cell title="详情描述" value="{{coupons.info}}" icon="comment-o" title-width="100rpx"/>
+    <van-cell title="生效时间" value="{{coupons.startTime}}" icon="clock-o" title-width="100rpx"/>
+    <van-cell title="过期时间" value="{{coupons.endTime}}" icon="clock-o" title-width="100rpx"/>
+  </van-cell-group>
+  <van-empty class="coupons-sheet-body-empty" wx:else image="error" description="暂未使用优惠卷"/>
+</van-action-sheet>
+
+<van-dialog class="pay-dialog" title="支付订单" show="{{ payDialogShow }}" show-confirm-button="{{false}}" use-slot width="400px">
+  <van-divider dashed/>
+  <view class="countdown-time">
+    <van-count-down class="pay-countdown" wx:if="{{countDownShow}}" time="{{ time }}" bind:change="countDown" bind:finish="onCountDownFinish" use-slot>
+      <view class="title">【请在15分钟内完成付款】</view>
+      <text class="item">{{ timeData.hours }}</text>
+      <text class="delimiter">时 </text>
+      <text class="item">{{ timeData.minutes }}</text>
+      <text class="delimiter">分 </text>
+      <text class="item">{{ timeData.seconds }}</text>
+      <text class="delimiter">秒 </text>
+    </van-count-down>
+  </view>
+  <van-divider dashed/>
+  <view class="pay-dialog-label">支付宝扫码</view>
+  <van-image class="qrcode-image" src="{{qrCodeImage}}" width="300" height="200"/>
+  <van-divider dashed/>
+  <van-button class="cancel-btn" bind:tap="cancelPay" block type="info">取消支付</van-button>
+</van-dialog>

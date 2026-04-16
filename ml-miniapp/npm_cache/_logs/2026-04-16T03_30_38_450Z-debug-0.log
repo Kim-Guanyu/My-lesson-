@@ -1,0 +1,115 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.4
+2 info using node@v22.22.1
+3 silly config load:file:D:\nvm\v22.22.1\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\xiaoyuzi\.npmrc
+5 silly config load:file:D:\ml-miniapp\npm_global\etc\npmrc
+6 verbose title npm install @vant/weapp@1.11.7
+7 verbose argv "install" "@vant/weapp@1.11.7" "--save"
+8 verbose logfile logs-max:10 dir:D:\ml-miniapp\npm_cache\_logs\2026-04-16T03_30_38_450Z-
+9 verbose logfile D:\ml-miniapp\npm_cache\_logs\2026-04-16T03_30_38_450Z-debug-0.log
+10 silly logfile done cleaning log files
+11 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+12 silly idealTree buildDeps
+13 silly fetch manifest @vant/weapp@1.11.7
+14 silly packumentCache full:https://registry.npmmirror.com/@vant%2fweapp cache-miss
+15 http fetch GET 200 https://registry.npmmirror.com/@vant%2fweapp 335ms (cache miss)
+16 silly packumentCache full:https://registry.npmmirror.com/@vant%2fweapp set size:49443 disposed:false
+17 silly placeDep ROOT @vant/weapp@1.11.7 OK for:  want: 1.11.7
+18 silly reify moves {}
+19 silly audit bulk request {
+19 silly audit   '@chevrotain/cst-dts-gen': [ '11.0.3' ],
+19 silly audit   '@chevrotain/gast': [ '11.0.3' ],
+19 silly audit   '@chevrotain/regexp-to-ast': [ '11.0.3' ],
+19 silly audit   '@chevrotain/types': [ '11.0.3' ],
+19 silly audit   '@chevrotain/utils': [ '11.0.3' ],
+19 silly audit   '@nodelib/fs.scandir': [ '2.1.5' ],
+19 silly audit   '@nodelib/fs.stat': [ '2.0.5' ],
+19 silly audit   '@nodelib/fs.walk': [ '1.2.8' ],
+19 silly audit   argparse: [ '2.0.1' ],
+19 silly audit   braces: [ '3.0.3' ],
+19 silly audit   chevrotain: [ '11.0.3' ],
+19 silly audit   'chevrotain-allstar': [ '0.3.1' ],
+19 silly audit   'cross-spawn': [ '7.0.6' ],
+19 silly audit   diff: [ '8.0.4' ],
+19 silly audit   execa: [ '5.1.1' ],
+19 silly audit   'fast-glob': [ '3.3.3' ],
+19 silly audit   fastq: [ '1.20.1' ],
+19 silly audit   'fill-range': [ '7.1.1' ],
+19 silly audit   'fs-extra': [ '11.3.4' ],
+19 silly audit   'get-stream': [ '6.0.1' ],
+19 silly audit   'glob-parent': [ '5.1.2' ],
+19 silly audit   'graceful-fs': [ '4.2.11' ],
+19 silly audit   'human-signals': [ '2.1.0' ],
+19 silly audit   'is-extglob': [ '2.1.1' ],
+19 silly audit   'is-glob': [ '4.0.3' ],
+19 silly audit   'is-number': [ '7.0.0' ],
+19 silly audit   'is-stream': [ '2.0.1' ],
+19 silly audit   isexe: [ '2.0.0' ],
+19 silly audit   'java-parser': [ '3.0.1' ],
+19 silly audit   'js-yaml': [ '4.1.1' ],
+19 silly audit   jsonfile: [ '6.2.0' ],
+19 silly audit   lodash: [ '4.17.21' ],
+19 silly audit   'lodash-es': [ '4.17.21' ],
+19 silly audit   'merge-stream': [ '2.0.0' ],
+19 silly audit   merge2: [ '1.4.1' ],
+19 silly audit   micromatch: [ '4.0.8' ],
+19 silly audit   'mimic-fn': [ '2.1.0' ],
+19 silly audit   'npm-run-path': [ '4.0.1' ],
+19 silly audit   onetime: [ '5.1.2' ],
+19 silly audit   'path-key': [ '3.1.1' ],
+19 silly audit   picomatch: [ '2.3.1' ],
+19 silly audit   'queue-microtask': [ '1.2.3' ],
+19 silly audit   reusify: [ '1.1.0' ],
+19 silly audit   'run-parallel': [ '1.2.0' ],
+19 silly audit   'shebang-command': [ '2.0.0' ],
+19 silly audit   'shebang-regex': [ '3.0.0' ],
+19 silly audit   shelljs: [ '0.10.0' ],
+19 silly audit   'signal-exit': [ '3.0.7' ],
+19 silly audit   'strip-final-newline': [ '2.0.0' ],
+19 silly audit   'to-regex-range': [ '5.0.1' ],
+19 silly audit   universalify: [ '2.0.1' ],
+19 silly audit   which: [ '2.0.2' ],
+19 silly audit   '@vant/weapp': [ '1.11.7' ]
+19 silly audit }
+20 http cache @vant/weapp@https://registry.npmmirror.com/@vant/weapp/-/weapp-1.11.7.tgz 0ms (cache hit)
+21 silly tarball no local data for @vant/weapp@https://registry.npmmirror.com/@vant/weapp/-/weapp-1.11.7.tgz. Extracting by manifest.
+22 http fetch POST 404 https://registry.npmmirror.com/-/npm/v1/security/advisories/bulk 53ms
+23 silly audit bulk request failed [object Object]
+24 http fetch POST 404 https://registry.npmmirror.com/-/npm/v1/security/audits/quick 30ms
+25 verbose audit error HttpErrorGeneral: 404 Not Found - POST https://registry.npmmirror.com/-/npm/v1/security/audits/quick - [NOT_IMPLEMENTED] /-/npm/v1/security/* not implemented yet
+25 verbose audit error     at D:\nvm\v22.22.1\node_modules\npm\node_modules\npm-registry-fetch\lib\check-response.js:103:15
+25 verbose audit error     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+25 verbose audit error     at async [getReport] (D:\nvm\v22.22.1\node_modules\npm\node_modules\@npmcli\arborist\lib\audit-report.js:336:21)
+25 verbose audit error     at async AuditReport.run (D:\nvm\v22.22.1\node_modules\npm\node_modules\@npmcli\arborist\lib\audit-report.js:106:19) {
+25 verbose audit error   headers: [Object: null prototype] {
+25 verbose audit error     server: [ 'Tengine' ],
+25 verbose audit error     date: [ 'Thu, 16 Apr 2026 03:30:41 GMT' ],
+25 verbose audit error     'content-type': [ 'application/json' ],
+25 verbose audit error     'transfer-encoding': [ 'chunked' ],
+25 verbose audit error     connection: [ 'keep-alive' ],
+25 verbose audit error     'strict-transport-security': [ 'max-age=5184000' ],
+25 verbose audit error     via: [ 'kunlun10.cn8033[,404666]' ],
+25 verbose audit error     'timing-allow-origin': [ '*' ],
+25 verbose audit error     eagleid: [ '3df10d1e17763102413773977e' ],
+25 verbose audit error     'x-fetch-attempts': [ '1' ]
+25 verbose audit error   },
+25 verbose audit error   statusCode: 404,
+25 verbose audit error   code: 'E404',
+25 verbose audit error   method: 'POST',
+25 verbose audit error   uri: 'https://registry.npmmirror.com/-/npm/v1/security/audits/quick',
+25 verbose audit error   body: {
+25 verbose audit error     error: '[NOT_IMPLEMENTED] /-/npm/v1/security/* not implemented yet'
+25 verbose audit error   },
+25 verbose audit error   pkgid: undefined
+25 verbose audit error }
+26 silly audit error [object Object]
+27 silly audit report null
+28 http fetch GET 200 https://cdn.npmmirror.com/packages/%40vant/weapp/1.11.7/weapp-1.11.7.tgz 1754ms (cache miss)
+29 silly ADD node_modules/@vant/weapp
+30 verbose cwd C:\Users\xiaoyuzi
+31 verbose os Windows_NT 10.0.26200
+32 verbose node v22.22.1
+33 verbose npm  v10.9.4
+34 verbose exit 0
+35 info ok

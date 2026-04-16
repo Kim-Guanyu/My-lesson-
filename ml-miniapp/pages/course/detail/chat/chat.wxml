@@ -1,0 +1,5 @@
+<view class="chat-page">
+  <view class="hint">客服功能需对接后端与 WebSocket，此处为占位页。</view>
+  <van-field value="{{ question }}" bind:change="onQ" placeholder="请输入问题" border="{{false}}"/>
+  <van-button type="info" block bind:tap="ask">提问（演示）</van-button>
+</view>

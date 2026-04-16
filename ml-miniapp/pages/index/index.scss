@@ -1,0 +1,133 @@
+@import "../../app.scss";
+
+.login-tips {
+  color: $gray;
+  margin-top: 20rpx;
+
+  .link {
+    color: $orange;
+  }
+}
+
+.project-title {
+  letter-spacing: 5rpx;
+  line-height: 80rpx;
+  margin: 40rpx 60rpx;
+
+  .title {
+    font-size: 45rpx;
+  }
+
+  .sub-title {
+    font-size: 40rpx;
+    color: $orange;
+  }
+}
+
+.banner {
+  height: 400rpx;
+  margin: 0 20rpx;
+
+  swiper,
+  image {
+    height: 400rpx;
+  }
+
+  .no-banner-tip {
+    height: 400rpx;
+
+    .van-empty__image {
+      height: 210px;
+      width: 400rpx;
+    }
+  }
+}
+
+.article {
+  text-align: left;
+
+  .van-cell {
+    background-color: $black;
+    color: $yellow;
+    font-weight: bold;
+    letter-spacing: 5rpx;
+  }
+
+  .article-collapse {
+    margin: 20rpx;
+  }
+
+  .van-collapse-item__content {
+    color: $black;
+    font-size: 25rpx;
+  }
+}
+
+.seckill {
+  padding: 0 20rpx;
+
+  .van-tab {
+    background: $bg-gray;
+    color: $white;
+  }
+
+  .van-tab--active {
+    background: $black;
+
+    .van-ellipsis {
+      color: $yellow;
+    }
+  }
+
+  .van-card {
+    color: $white;
+    background: $bg-gray;
+    border: 2rpx solid $black;
+    margin: 10rpx 0 0;
+  }
+
+  .van-card__content {
+    padding-left: 30rpx;
+    text-align: left;
+  }
+
+  .van-card__title {
+    padding-top: 20rpx;
+    font-size: large;
+    margin-bottom: 10rpx;
+    color: $yellow;
+  }
+
+  .van-card__price {
+    color: $orange;
+  }
+
+  .van-card__thumb {
+    margin-top: 20rpx;
+    width: 220rpx;
+  }
+
+  .sk-btn {
+    width: 170rpx;
+    height: 70rpx;
+    line-height: 70rpx;
+    text-align: center;
+    font-size: large;
+    margin-top: -70px;
+    float: right;
+    border-top-left-radius: 50%;
+    border-bottom-right-radius: 50%;
+  }
+
+  .sk-btn-0,
+  .sk-btn-2 {
+    opacity: 0.6;
+    background-color: $subBlack;
+    color: $white;
+  }
+
+  .sk-btn-1 {
+    background-color: $yellow;
+    color: $orange;
+  }
+}

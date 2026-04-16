@@ -1,0 +1,41 @@
+@import "../../app.scss";
+
+.user-scroll {
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+.user-loading {
+  padding: 80rpx;
+  color: $gray;
+}
+
+.user-head {
+  margin-top: 40rpx;
+
+  .nickname-col {
+    text-align: left;
+    line-height: 80rpx;
+  }
+
+  .van-tag {
+    margin-right: 10rpx;
+  }
+}
+
+.operation-btn {
+  margin: 30rpx 0;
+}
+
+.user-body {
+  text-align: left;
+}
+
+.user-foot {
+  padding: 0 30rpx 200rpx;
+
+  .van-button {
+    margin-top: 30rpx;
+    border-radius: 15rpx;
+  }
+}

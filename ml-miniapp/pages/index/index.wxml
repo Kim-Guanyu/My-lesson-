@@ -1,0 +1,57 @@
+<van-sticky class="notice-bar">
+  <van-notice-bar wx:if="{{currentNotice}}" text="{{currentNotice}}" left-icon="volume-o"/>
+</van-sticky>
+
+<view class="login-tips" wx:if="{{isLogin}}">
+  游客部分功能受限，点我 <text bind:tap="toLogin" class="link">登录系统</text>！
+</view>
+
+<view class="project-title">
+  <view class="title">{{PROJECT_TITLE}}</view>
+  <view class="sub-title">{{PROJECT_SUB_TITLE}}</view>
+</view>
+
+<view class="banner">
+  <swiper wx:if="{{banners && banners.length}}" autoplay="3000" circular>
+    <swiper-item wx:for="{{banners}}" wx:key="id">
+      <van-image src="{{MINIO_BANNER}}/{{item.url}}" width="100%" height="150px" fit="fill"/>
+    </swiper-item>
+  </swiper>
+  <van-empty wx:else custom-class="no-banner-tip" image="error" description="暂无轮播图片"/>
+</view>
+
+<view class="article">
+  <van-divider contentPosition="center" dashed>公告列表</van-divider>
+  <van-collapse wx:if="{{articles && articles.length}}" custom-class="article-collapse" value="{{ currentArticleIdx }}" bind:change="changeArticle" accordion>
+    <van-collapse-item wx:for="{{articles}}" wx:key="idx" title="{{item.title}}" name="{{item.idx}}" icon="fire-o">
+      {{item.content}}
+    </van-collapse-item>
+  </van-collapse>
+</view>
+
+<view class="seckill">
+  <van-divider contentPosition="center" dashed>整点秒杀</van-divider>
+  <van-tabs wx:if="{{seckills && seckills.length > 0}}" active="{{ activeSeckillIdx }}" bind:change="changeSeckill">
+    <van-tab wx:for="{{seckills}}" wx:for-item="seckill" wx:key="id" title="{{seckill.title}}">
+      <view wx:if="{{seckill.seckillDetails && seckill.seckillDetails.length > 0}}">
+        <van-card wx:for="{{seckill.seckillDetails}}" wx:key="id" title="{{item.courseTitle}}" price="{{item.skPrice}}" origin-price="{{item.coursePrice}}" thumb="{{MINIO}}{{item.courseCover}}" thumb-mode="scaleToFill" tag="秒杀" desc="描述信息">
+          <view slot="footer">
+            <view class="sk-btn sk-btn-0" wx:if="{{seckill.status === 0}}">未开始</view>
+            <view class="sk-btn sk-btn-1" wx:if="{{seckill.status === 1}}">秒杀中</view>
+            <view class="sk-btn sk-btn-2" wx:if="{{seckill.status === 2}}">已结束</view>
+          </view>
+        </van-card>
+      </view>
+      <view wx:else>
+        <van-empty image="error" description="暂无秒杀商品"/>
+      </view>
+    </van-tab>
+  </van-tabs>
+  <view wx:else>
+    <van-empty image="error" description="暂无秒杀活动"/>
+  </view>
+</view>
+
+<view class="baseline">
+  <van-divider contentPosition="center" dashed>底线</van-divider>
+</view>

@@ -13,3 +13,7 @@ spring:
             refresh: true # 是否动态刷新，默认为false
   profiles:
     active: dev # 当前开发环境，决定了使用NacosConfig中，哪个环境的配置文件
+rocketmq:
+  # 本地兜底值，避免配置中心未加载/被覆盖时 name-server 为空导致 connect to null failed
+  # 若 Nacos 中存在 rocketmq.name-server，会按优先级覆盖此值
+  name-server: ${ROCKETMQ_NAME_SERVER:192.168.211.132:9876}

@@ -1,0 +1,7 @@
+<view class="tab-bar-wrap">
+  <van-tabbar active="{{ activeTab }}" bind:change="changeTab">
+    <van-tabbar-item wx:for="{{ tabs }}" wx:key="index" icon="{{ item.icon }}">
+      {{ item.text }}
+    </van-tabbar-item>
+  </van-tabbar>
+</view>

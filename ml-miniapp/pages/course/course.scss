@@ -1,0 +1,31 @@
+@import "../../app.scss";
+
+.course-list {
+  height: 90vh;
+
+  .course-item {
+    background-color: $black;
+
+    .title {
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: $yellow;
+      font-size: 30rpx;
+      margin-top: 10rpx;
+      margin-left: 20rpx;
+      margin-bottom: 20rpx;
+      text-align: left;
+      width: 100%;
+    }
+
+    .info {
+      font-size: small;
+      text-align: left;
+      line-height: 40rpx;
+      width: 100%;
+      margin-left: 20rpx;
+    }
+  }
+}

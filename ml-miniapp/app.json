@@ -1,0 +1,46 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/course/course",
+    "pages/cart/cart",
+    "pages/user/user",
+    "pages/index/login-by-account/login-by-account",
+    "pages/index/login-by-phone/login-by-phone",
+    "pages/index/register/register",
+    "pages/course/detail/detail",
+    "pages/course/detail/chat/chat",
+    "pages/user/order/order",
+    "pages/user/order/player/player",
+    "pages/user/video/video",
+    "pages/user/follow/follow",
+    "pages/user/account/account",
+    "pages/user/account/update-password/update-password",
+    "pages/user/update-nickname/update-nickname",
+    "pages/user/update-gender/update-gender",
+    "pages/user/update-age/update-age",
+    "pages/user/update-zodiac/update-zodiac",
+    "pages/user/update-province/update-province",
+    "pages/user/update-email/update-email",
+    "pages/user/update-info/update-info"
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "我的课堂小程序",
+    "navigationBarBackgroundColor": "#252a34"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#757171",
+    "selectedColor": "#f9ed69",
+    "backgroundColor": "#252a34",
+    "list": [
+      {"pagePath": "pages/index/index", "text": "首页"},
+      {"pagePath": "pages/course/course", "text": "课程"},
+      {"pagePath": "pages/cart/cart", "text": "购物车"},
+      {"pagePath": "pages/user/user", "text": "我的"}
+    ]
+  },
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}
