@@ -1,3 +1,7 @@
 {
-  "navigationBarTitleText": "功能开发中"
+  "navigationBarTitleText": "修改描述",
+  "usingComponents": {
+    "van-field": "@vant/weapp/field/index",
+    "van-button": "@vant/weapp/button/index"
+  }
 }

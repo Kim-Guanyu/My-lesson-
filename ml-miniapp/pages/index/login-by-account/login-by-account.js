@@ -4,8 +4,13 @@ const constant = require('../../../utils/const.js');
 
 Page({
   data: {
-    username: 'admin',
-    password: '123456789'
+    username: '',
+    password: '',
+    showPassword: false
+  },
+
+  togglePasswordVisible() {
+    this.setData({showPassword: !this.data.showPassword});
   },
 
   loginByAccount() {

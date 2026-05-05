@@ -21,6 +21,15 @@ Page({
     util.page('/pages/index/login-by-account/login-by-account', true);
   },
 
+  tapBanner(ev) {
+    const courseId = ev.currentTarget.dataset.courseId;
+    if (!courseId) {
+      util.tip('暂无对应课程');
+      return;
+    }
+    util.page('/pages/course/detail/detail?courseId=' + courseId, false);
+  },
+
   topNotice1() {
     const that = this;
     api.get('notice', '/top/1')
@@ -36,7 +45,13 @@ Page({
   topBanner5() {
     const that = this;
     api.get('banner', '/top/5')
-      .then(res => that.setData({banners: res}))
+      .then(res => {
+        const banners = (Array.isArray(res) ? res : []).map(item => ({
+          ...item,
+          courseId: item.id
+        }));
+        that.setData({banners});
+      })
       .catch(err => console.error(err));
   },
 

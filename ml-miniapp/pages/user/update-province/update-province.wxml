@@ -1,1 +1,15 @@
-<view class="stub">功能开发中</view>
+<view class="page">
+  <van-field
+    label="省份"
+    value="{{province}}"
+    readonly
+    is-link
+    placeholder="请选择省份"
+    bind:tap="openPicker"
+  />
+  <van-button class="submit-btn" type="primary" block loading="{{saving}}" bind:tap="submit">保存</van-button>
+</view>
+
+<van-popup show="{{pickerVisible}}" position="bottom" bind:close="closePicker">
+  <van-picker columns="{{provinceColumns}}" bind:confirm="onPickerConfirm" bind:cancel="closePicker" />
+</van-popup>

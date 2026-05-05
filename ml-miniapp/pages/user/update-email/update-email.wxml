@@ -1,1 +1,10 @@
-<view class="stub">功能开发中</view>
+<view class="page">
+  <van-field
+    label="邮箱"
+    value="{{email}}"
+    bind:change="onEmailChange"
+    placeholder="请输入邮箱"
+    clearable
+  />
+  <van-button class="submit-btn" type="primary" block loading="{{saving}}" bind:tap="submit">保存</van-button>
+</view>

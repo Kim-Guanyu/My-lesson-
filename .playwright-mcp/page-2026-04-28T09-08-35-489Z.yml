@@ -1,0 +1,19 @@
+- generic [ref=e5]:
+  - generic [ref=e6]: MyLesson 管理端登录
+  - generic [ref=e7]:
+    - tablist [ref=e11]:
+      - tab "账号" [selected] [ref=e13]
+      - tab "手机" [ref=e14]
+    - tabpanel "账号" [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]:
+          - generic [ref=e19]: 用户名
+          - textbox "用户名" [ref=e23]:
+            - /placeholder: 请输入用户名
+        - generic [ref=e24]:
+          - generic [ref=e25]: 密码
+          - textbox "密码" [ref=e29]:
+            - /placeholder: 请输入密码
+  - button "登录" [ref=e31] [cursor=pointer]:
+    - generic [ref=e32]: 登录
+  - generic [ref=e34]: 没有账号？请联系管理员开通。

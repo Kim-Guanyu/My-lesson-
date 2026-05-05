@@ -137,6 +137,40 @@ public class MinioUtil {
         return getImagePreviewUrl(defaultBucketName, objectName, DEFAULT_EXPIRE_SECONDS);
     }
 
+    public byte[] getObjectBytes(String objectName) {
+        return getObjectBytes(defaultBucketName, objectName);
+    }
+
+    public byte[] getObjectBytes(String bucketName, String objectName) {
+        try (InputStream inputStream = minioClient.getObject(
+                GetObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(objectName)
+                        .build()
+        )) {
+            return inputStream.readAllBytes();
+        } catch (Exception e) {
+            throw new ServiceException(ResultCode.MINIO_ERROR, "读取 MinIO 对象失败: " + e.getMessage());
+        }
+    }
+
+    public String getObjectContentType(String objectName) {
+        return getObjectContentType(defaultBucketName, objectName);
+    }
+
+    public String getObjectContentType(String bucketName, String objectName) {
+        try {
+            return minioClient.statObject(
+                    StatObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .build()
+            ).contentType();
+        } catch (Exception e) {
+            throw new ServiceException(ResultCode.MINIO_ERROR, "获取 MinIO 对象类型失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 获取图片临时预览 URL（指定桶名和过期时间）
      * @param bucketName  桶名

@@ -24,10 +24,32 @@
       :data="rows"
       v-loading="loading"
       style="width: 100%"
+      table-layout="auto"
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="48" />
-      <el-table-column v-for="col in columns" :key="col" :prop="col" :label="col" min-width="120" />
+      <el-table-column
+        v-for="col in columns"
+        :key="col"
+        :prop="col"
+        :label="col"
+        :min-width="resolveColumnMinWidth(col)"
+        :show-overflow-tooltip="!isImageColumn(col)"
+      >
+        <template #default="scope">
+          <div v-if="resolveImageUrl(col, scope.row)" class="image-cell">
+            <img
+              class="table-image"
+              :src="resolveImageUrl(col, scope.row)"
+              :alt="String(scope.row[col] || '')"
+              @error="handleImageError($event, col, scope.row)"
+              @click="openImage(resolveImageUrl(col, scope.row))"
+            />
+            <div class="image-name">{{ scope.row[col] }}</div>
+          </div>
+          <span v-else>{{ scope.row[col] }}</span>
+        </template>
+      </el-table-column>
       <el-table-column fixed="right" label="操作" width="160">
         <template #default="scope">
           <el-button link type="primary" size="small" @click="openDetail(scope.row)">查看</el-button>
@@ -100,6 +122,8 @@ const createPath = computed(() => route.meta?.createPath || "insert");
 const updatePath = computed(() => route.meta?.updatePath || "update");
 const deletePath = computed(() => route.meta?.deletePath || "delete");
 const deleteBatchPath = computed(() => route.meta?.deleteBatchPath ?? "");
+const MINIO_BASE_URL = (import.meta.env.VITE_MINIO_BASE_URL || "http://192.168.211.132:9000/my-lesson").replace(/\/$/, "");
+const MINIO_BASE_URL_LEGACY = MINIO_BASE_URL.replace(/\/my-lesson$/, "/mylesson");
 
 const loading = ref(false);
 const rows = ref([]);
@@ -142,6 +166,94 @@ const fieldTypes = computed(() => {
 });
 
 const resolveRowId = (row) => row?.id ?? row?.ID;
+
+const routeImageDirMap = {
+  "/users": { avatar: "avatar" },
+  "/comments": { avatar: "avatar" },
+  "/banners": { url: "banner" },
+  "/courses": { cover: "course-cover", summary: "course-summary" },
+  "/episodes": { cover: "episode-video-cover", video: "episode-video" },
+  "/seckill-details": { courseCover: "course-cover", course_cover: "course-cover" },
+  "/order-details": { courseCover: "course-cover", course_cover: "course-cover" }
+};
+
+const isImageColumn = (column) => {
+  const imageColumns = ["avatar", "url", "cover", "summary", "video", "courseCover", "course_cover"];
+  return imageColumns.includes(column);
+};
+
+const resolveColumnMinWidth = (column) => {
+  if (isImageColumn(column)) {
+    return 180;
+  }
+  if (["id", "idx", "gender", "age", "status", "payType", "price", "skPrice", "cpPrice"].includes(column)) {
+    return 90;
+  }
+  if (["title", "courseTitle", "nickname", "username", "phone", "email", "realname"].includes(column)) {
+    return 140;
+  }
+  if (["info", "content"].includes(column)) {
+    return 220;
+  }
+  return 120;
+};
+
+const filterColumns = (cols) => {
+  if (route.path === "/courses") {
+    return cols.filter((col) => col !== "summary");
+  }
+  return cols;
+};
+
+const resolveImageUrl = (column, row) => {
+  const value = row?.[column];
+  if (!value || typeof value !== "string") {
+    return "";
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  const dir = routeImageDirMap[route.path]?.[column];
+  if (!dir) {
+    return "";
+  }
+  return `${MINIO_BASE_URL}/${dir}/${encodeURIComponent(value)}`;
+};
+
+const openImage = (url) => {
+  if (!url) {
+    return;
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
+};
+
+const resolveLegacyImageUrl = (column, row) => {
+  const value = row?.[column];
+  if (!value || typeof value !== "string") {
+    return "";
+  }
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
+  const dir = routeImageDirMap[route.path]?.[column];
+  if (!dir) {
+    return "";
+  }
+  return `${MINIO_BASE_URL_LEGACY}/${dir}/${encodeURIComponent(value)}`;
+};
+
+const handleImageError = (event, column, row) => {
+  const img = event?.target;
+  if (!img || img.dataset.fallbackTried === "1") {
+    return;
+  }
+  const legacyUrl = resolveLegacyImageUrl(column, row);
+  if (!legacyUrl || legacyUrl === img.src) {
+    return;
+  }
+  img.dataset.fallbackTried = "1";
+  img.src = legacyUrl;
+};
 
 const extractRows = (payload) => {
   if (Array.isArray(payload)) {
@@ -208,7 +320,8 @@ const loadData = async () => {
     const data = await http.get(`${apiBase.value}/${listPath.value}`, { params });
     rows.value = extractRows(data);
     totalRows.value = extractTotal(data) || rows.value.length;
-    columns.value = rows.value.length ? Object.keys(rows.value[0]) : [];
+    const rawColumns = rows.value.length ? Object.keys(rows.value[0]) : [];
+    columns.value = filterColumns(rawColumns);
   } finally {
     loading.value = false;
   }
@@ -417,5 +530,27 @@ watch(
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+}
+
+.image-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.table-image {
+  width: 120px;
+  height: 76px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  object-fit: cover;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.image-name {
+  color: #64748b;
+  font-size: 12px;
+  word-break: break-all;
 }
 </style>

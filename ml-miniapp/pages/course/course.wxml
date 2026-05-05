@@ -6,7 +6,7 @@
   <van-divider contentPosition="center" dashed>课程列表</van-divider>
   <van-grid class="course-list-grid" column-num="2" gutter="20rpx">
     <van-grid-item content-class="course-item" wx:for="{{courses}}" wx:key="id" data-course-id="{{item.id}}" bind:tap="showDetail" use-slot>
-      <van-image src="{{MINIO_COURSE_COVER}}/{{item.cover}}" width="300rpx" height="200rpx"/>
+      <van-image src="{{MINIO_COURSE_COVER}}{{item.cover}}" width="300rpx" height="200rpx"/>
       <view class="title">{{ item.title }}</view>
       <view class="info">
         <view>

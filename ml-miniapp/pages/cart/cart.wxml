@@ -16,7 +16,7 @@
               <van-checkbox class="cart-cbx" name="{{item.fkCourseId}}" data-price="{{item.coursePrice}}"/>
             </van-col>
             <van-col span="8">
-              <van-image class="cart-image" src="{{MINIO_COURSE_COVER}}/{{item.courseCover}}" bind:tap="showDetail" data-course-id="{{item.fkCourseId}}" width="130" height="90"/>
+              <van-image class="cart-image" src="{{MINIO_COURSE_COVER}}{{item.courseCover}}" bind:tap="showDetail" data-course-id="{{item.fkCourseId}}" width="130" height="90"/>
             </van-col>
           </van-row>
         </view>
@@ -36,6 +36,7 @@
 <view class="submit-order">
   <van-submit-bar custom-class="submit-bar" price="{{ payAmount * 100 }}" bind:submit="openPayDialog" button-text="提交订单" tip="{{ true }}">
     <van-tag class="coupons-btn" bind:tap="openCouponsSheet" type="warning">优惠卷详情</van-tag>
+    <van-tag class="coupons-btn" bind:tap="removeSelected" type="danger">删除所选</van-tag>
     <view slot="tip">课程属于虚拟产品，购买后不支持退换！</view>
   </van-submit-bar>
 </view>

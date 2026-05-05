@@ -1,9 +1,9 @@
 <scroll-view scroll-y class="user-scroll" wx:if="{{user}}">
   <view class="user-head">
     <van-row>
-      <van-col class="avatar-col" wx:if="{{user.avatar}}" span="8">
+      <van-col class="avatar-col" wx:if="{{user.avatarUrl}}" span="8">
         <van-uploader file-list="{{avatarFile}}" bind:after-read="uploadAvatar" max-count="1" accept="image" deletable="{{false}}">
-          <van-image src="{{MINIO_AVATAR}}{{user.avatar}}" width="100" height="100" fit="cover" round/>
+          <van-image src="{{user.avatarUrl}}" bind:error="handleAvatarError" width="100" height="100" fit="cover" round/>
         </van-uploader>
       </van-col>
       <van-col class="nickname-col" span="16">
@@ -45,4 +45,5 @@
     <van-button bind:tap="logout" block type="danger">退出登录</van-button>
   </view>
 </scroll-view>
-<view wx:else class="user-loading">加载中…</view>
+<view wx:elif="{{loading}}" class="user-loading">加载中…</view>
+<view wx:else class="user-loading">未获取到用户信息，请重新登录</view>

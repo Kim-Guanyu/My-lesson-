@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  mqnamesrv:
+    image: apache/rocketmq:5.1.4
+    container_name: mqnamesrv
+    restart: unless-stopped
+    ports:
+      - "9876:9876"
+    environment:
+      TZ: Asia/Shanghai
+    command: sh mqnamesrv
+
+  mqbroker:
+    image: apache/rocketmq:5.1.4
+    container_name: mqbroker
+    restart: unless-stopped
+    depends_on:
+      - mqnamesrv
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+      - "10912:10912"
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./docker/rocketmq/broker.conf:/home/rocketmq/rocketmq-5.1.4/conf/broker.conf
+      - ./docker/rocketmq/data/logs:/home/rocketmq/logs
+      - ./docker/rocketmq/data/store:/home/rocketmq/store
+    command: sh mqbroker -n 192.168.211.132:9876 -c /home/rocketmq/rocketmq-5.1.4/conf/broker.conf
+
+  rocket-console:
+    image: styletang/rocketmq-console-ng:latest
+    container_name: rocket-console
+    restart: unless-stopped
+    depends_on:
+      - mqnamesrv
+    ports:
+      - "12581:8080"
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_OPTS: "-Drocketmq.config.namesrvAddr=192.168.211.132:9876 -Dserver.port=8080"

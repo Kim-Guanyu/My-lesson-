@@ -21,6 +21,8 @@ Page({
     carts: null,
     courseIdAndPrice: {},
     courseIds: [],
+    courseIdToCartId: {},
+    selectedCartIds: [],
     MINIO_COURSE_COVER: constant.MINIO_COURSE_COVER,
     pageInfo: {pageNum: 1, pageSize: 8, totalPage: 0, totalRow: 0},
     payDialogShow: false,
@@ -51,11 +53,17 @@ Page({
         'pageInfo.totalRow': res.totalRow
       });
       const courseIdAndPrice = {};
+      const courseIdToCartId = {};
       for (let i in that.data.carts) {
         const cart = that.data.carts[i];
-        courseIdAndPrice[cart.fkCourseId] = cart.coursePrice;
+        const courseKey = String(cart.fkCourseId);
+        courseIdAndPrice[courseKey] = cart.coursePrice;
+        courseIdToCartId[courseKey] = cart.id;
       }
-      that.setData({courseIdAndPrice});
+      const selectedCartIds = (that.data.courseIds || [])
+        .map(id => courseIdToCartId[String(id)])
+        .filter(Boolean);
+      that.setData({courseIdAndPrice, courseIdToCartId, selectedCartIds});
     }).catch(err => console.error(err));
   },
 
@@ -120,7 +128,35 @@ Page({
     util.confirm('课程将被移出购物车，确定吗？', () => {
       api.del('cart', '/delete/' + id).then(() => {
         util.success('移出成功');
-        that.setData({carts: null, 'pageInfo.pageNum': 1});
+        that.setData({
+          carts: null,
+          courseIds: [],
+          selectedCartIds: [],
+          'pageInfo.pageNum': 1
+        });
+        that.loadCartPage();
+        that.getTotalAmount();
+      }).catch(err => console.log(err));
+    });
+  },
+
+  removeSelected() {
+    const that = this;
+    const ids = (this.data.selectedCartIds || []).filter(Boolean);
+    if (!ids.length) {
+      util.error('请选择要删除的课程');
+      return;
+    }
+    util.confirm('确定删除已选课程吗？', () => {
+      const query = ids.map(id => `ids=${id}`).join('&');
+      api.del('cart', '/deleteBatch?' + query).then(() => {
+        util.success('删除成功');
+        that.setData({
+          carts: null,
+          courseIds: [],
+          selectedCartIds: [],
+          'pageInfo.pageNum': 1
+        });
         that.loadCartPage();
         that.getTotalAmount();
       }).catch(err => console.log(err));
@@ -138,7 +174,9 @@ Page({
           totalAmount: 0,
           payAmount: 0,
           coupons: {},
-          courseIds: []
+          courseIds: [],
+          courseIdToCartId: {},
+          selectedCartIds: []
         });
       }).catch(err => console.log(err));
     });
@@ -235,7 +273,7 @@ Page({
       });
     }).catch(err => {
       console.error(err);
-      util.error('总金额查询失败');
+      this.setData({totalAmount: 0, payAmount: 0});
     });
   },
 
@@ -246,17 +284,20 @@ Page({
 
   changeCourseIds(ev) {
     const courseIds = ev.detail;
-    this.setData({courseIds});
     const courseIdAndPrice = this.data.courseIdAndPrice;
+    const courseIdToCartId = this.data.courseIdToCartId || {};
+    const selectedCartIds = (courseIds || [])
+      .map(id => courseIdToCartId[String(id)])
+      .filter(Boolean);
     let payAmount = 0;
     let totalAmount = 0;
     for (let i in courseIds) {
       const courseId = courseIds[i];
-      const p = courseIdAndPrice[courseId] || 0;
+      const p = courseIdAndPrice[String(courseId)] || 0;
       payAmount += p;
       totalAmount += p;
     }
-    this.setData({payAmount, totalAmount});
+    this.setData({courseIds, selectedCartIds, payAmount, totalAmount});
   },
 
   onLoad() {

@@ -1,1 +1,13 @@
-<view class="stub">功能开发中</view>
+<view class="page">
+  <van-field
+    label="描述"
+    type="textarea"
+    value="{{info}}"
+    bind:change="onInfoChange"
+    placeholder="请输入描述"
+    maxlength="170"
+    autosize
+    clearable
+  />
+  <van-button class="submit-btn" type="primary" block loading="{{saving}}" bind:tap="submit">保存</van-button>
+</view>

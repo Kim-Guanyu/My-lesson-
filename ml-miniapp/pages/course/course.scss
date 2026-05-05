@@ -1,10 +1,14 @@
 @import "../../app.scss";
 
 .course-list {
-  height: 90vh;
+  height: calc(100vh - 140rpx);
+  padding: 0 12rpx 20rpx;
 
   .course-item {
     background-color: $black;
+    border-radius: 16rpx;
+    padding-bottom: 16rpx;
+    overflow: hidden;
 
     .title {
       font-weight: bold;
@@ -17,15 +21,16 @@
       margin-left: 20rpx;
       margin-bottom: 20rpx;
       text-align: left;
-      width: 100%;
+      width: calc(100% - 40rpx);
     }
 
     .info {
       font-size: small;
       text-align: left;
       line-height: 40rpx;
-      width: 100%;
+      width: calc(100% - 40rpx);
       margin-left: 20rpx;
+      color: #d1d5db;
     }
   }
 }

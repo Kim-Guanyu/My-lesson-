@@ -40,14 +40,23 @@ function sendRequest(config) {
       data: params,
       header: header,
       success(res) {
-        if (util.isNull(res)) util.error('服务器无响应');
-        res = undefined !== res.data && undefined !== res.data['data'] ? res.data : res;
-        if (res['code'] === constant.STATUS.SUCCESS) {
-          resolve(util.isNotNull(res.data) ? res.data : true);
-        } else {
-          util.error(res['message']);
-          console.error(res['coderMessage']);
+        if (util.isNull(res)) {
+          util.error('服务器无响应');
+          reject(new Error('服务器无响应'));
+          return;
         }
+        const data = res.data;
+        if (data && typeof data === 'object' && 'code' in data) {
+          if (data.code === constant.STATUS.SUCCESS) {
+            resolve(util.isNotNull(data.data) ? data.data : true);
+          } else {
+            util.error(data.message || '请求失败');
+            console.error(data.coderMessage);
+            reject(new Error(data.message || '请求失败'));
+          }
+          return;
+        }
+        resolve(data);
       },
       fail(err) {
         reject('请求异常: ' + err);

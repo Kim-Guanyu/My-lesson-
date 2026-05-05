@@ -5,6 +5,7 @@ const constant = require('../../utils/const.js');
 Page({
   data: {
     user: null,
+    loading: true,
     MINIO_AVATAR: constant.MINIO_AVATAR,
     avatarFile: [],
     NICKNAME_UPDATE_URL: '/pages/user/update-nickname/update-nickname?nickname=',
@@ -16,14 +17,74 @@ Page({
     INFO_UPDATE_URL: '/pages/user/update-info/update-info?info='
   },
 
+  normalizeUser(rawUser) {
+    if (!rawUser) {
+      return null;
+    }
+    const user = {...rawUser};
+    if (user.avatarUrl) {
+      return user;
+    }
+    if (user.avatar && /^https?:\/\//i.test(user.avatar)) {
+      user.avatarUrl = user.avatar;
+      return user;
+    }
+    const cleanAvatar = user.avatar
+      ? String(user.avatar).replace(/^\/+/, '').replace(/^avatar\//i, '')
+      : '';
+    if (cleanAvatar) {
+      const legacyAvatarBase = String(constant.MINIO_AVATAR).replace('/my-lesson/', '/mylesson/');
+      user.avatarFileName = cleanAvatar;
+      user.avatarUrl = `${constant.MINIO_AVATAR}${cleanAvatar}`;
+      user.avatarLegacyUrl = `${legacyAvatarBase}${cleanAvatar}`;
+      user.avatarProxyUrl = `${constant.USER_AVATAR_URL}${encodeURIComponent(cleanAvatar)}`;
+    } else {
+      user.avatarUrl = '';
+    }
+    return user;
+  },
+
+  handleAvatarError() {
+    const user = this.data.user;
+    if (!user || !user.avatarFileName) {
+      return;
+    }
+    const current = user.avatarUrl || '';
+    let next = '';
+    if (current === user.avatarUrl && user.avatarLegacyUrl) {
+      next = user.avatarLegacyUrl;
+    } else if (current === user.avatarLegacyUrl && user.avatarProxyUrl) {
+      next = user.avatarProxyUrl;
+    }
+    if (!next || next === current) {
+      return;
+    }
+    this.setData({user: {...user, avatarUrl: next}});
+  },
+
+  applyUser(rawUser) {
+    const user = this.normalizeUser(rawUser);
+    this.setData({user});
+  },
+
   getInfo() {
     const that = this;
     const u = wx.getStorageSync('user');
-    if (!u || !u.id) return;
+    if (!u || !u.id) {
+      that.setData({loading: false});
+      return;
+    }
+    that.setData({loading: true});
     const url = '/select/' + u.id;
     api.get('user', url).then(res => {
-      that.setData({user: res});
-    }).catch(err => console.log(err));
+      that.applyUser(res);
+      that.setData({loading: false});
+    }).catch(err => {
+      console.log(err);
+      const cachedUser = wx.getStorageSync('user');
+      that.applyUser(cachedUser || null);
+      that.setData({loading: false});
+    });
   },
 
   uploadAvatar(ev) {
@@ -67,13 +128,21 @@ Page({
       this.getTabBar().setData({activeTab: 3});
     }
     if (util.isLogin()) {
+      const cachedUser = wx.getStorageSync('user');
+      this.applyUser(cachedUser || null);
       this.getInfo();
+    } else {
+      this.setData({loading: false});
     }
   },
 
   onShow() {
     if (wx.getStorageSync('token')) {
+      const cachedUser = wx.getStorageSync('user');
+      this.applyUser(cachedUser || null);
       this.getInfo();
+    } else {
+      this.setData({loading: false, user: null});
     }
   }
 });

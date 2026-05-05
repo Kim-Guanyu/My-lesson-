@@ -1,0 +1,9 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e41]:
+    - img [ref=e43]
+    - paragraph [ref=e46]: 页面不存在
+    - button "返回仪表盘" [ref=e48] [cursor=pointer]:
+      - generic [ref=e49]: 返回仪表盘
+  - alert [ref=e50]:
+    - img [ref=e52]
+    - paragraph [ref=e54]: 登录成功

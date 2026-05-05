@@ -31,7 +31,7 @@ public class ML {
 
     public interface MinIO {
         /** 桶名 */
-        String BUCKET_NAME = "mylesson";
+        String BUCKET_NAME = "my-lesson";
         /** 头像上传目录 */
         String AVATAR_DIR = "avatar";
         /** 课程封面上传目录 */
@@ -97,9 +97,9 @@ public class ML {
         String DEFAULT_PASSWORD = "123456789";
         /** 用户默认头像: 12生肖图 */
         List<String> DEFAULT_AVATARS = Arrays.asList(
-                "mouse.png", "cow.png", "tiger.png", "rabbit.png",
-                "dragon.png", "snake.png", "horse.png", "sheep.png",
-                "monkey.png", "chicken.png", "dog.png", "pig.png");
+                "mouse.jpg", "cow.jpg", "tiger.jpg", "rabbit.jpg",
+                "dragon.jpg", "snake.jpg", "horse.jpg", "sheep.jpg",
+                "monkey.jpg", "chicken.jpg", "dog.jpg", "pig.jpg");
 
         /** 用户性别处理方法：数字代码 -> 字符串 */
         static String genderFormat(Integer genderCode) {

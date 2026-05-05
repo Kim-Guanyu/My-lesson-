@@ -1,13 +1,44 @@
 @import "../../../app.scss";
 
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.detail-scroll {
+  flex: 1;
+  height: 0;
+  padding-bottom: calc(220rpx + env(safe-area-inset-bottom));
+}
+
 .detail-video video {
   width: 100%;
   height: 420rpx;
   background: #000;
 }
 
+.danmu-bar {
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx 20rpx;
+  align-items: center;
+
+  .danmu-input {
+    flex: 1;
+    background: #1f232b;
+    color: #fff;
+    border-radius: 8rpx;
+    padding: 12rpx 16rpx;
+  }
+
+  .danmu-send {
+    padding: 0 24rpx;
+  }
+}
+
 .detail-main {
-  padding-bottom: 200rpx;
+  padding: 0 16rpx 32rpx;
 }
 
 .catalog {
@@ -29,9 +60,19 @@
 }
 
 .detail-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
   justify-content: center;
-  margin: 40rpx 20rpx;
+  padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: $bg-gray;
+  box-shadow: 0 -8rpx 20rpx rgba(0, 0, 0, 0.25);
+
+  :deep(.van-button) {
+    min-width: 160rpx;
+  }
 }

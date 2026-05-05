@@ -1,7 +1,10 @@
 package com.mdkj.controller;
 
 import com.mdkj.dto.*;
+import com.mdkj.exception.ServiceException;
 import com.mdkj.util.EasyExcelUtil;
+import com.mdkj.util.ML;
+import com.mdkj.util.MinioUtil;
 import com.mdkj.util.Result;
 import com.mdkj.vo.PageVO;
 import com.mybatisflex.core.paginate.Page;
@@ -15,10 +18,14 @@ import com.mdkj.service.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 用户表 控制层。
@@ -33,6 +40,9 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Resource
+    private MinioUtil minioUtil;
 
     /**
      * 添加用户表。
@@ -150,6 +160,12 @@ public class UserController {
         return new Result<>(userService.uploadAvatar(avatarFile, id));
     }
 
+    @Operation(summary = "查询 - 用户头像", description = "按文件名读取用户头像，通过网关代理输出")
+    @GetMapping("avatar/{fileName:.+}")
+    public ResponseEntity<byte[]> avatar(@PathVariable("fileName") String fileName) {
+        return this.buildAvatarResponse(fileName);
+    }
+
     @Operation(summary = "查询 - 解绑验证码", description = "获取旧手机号码的解绑验证码")
     @GetMapping("getUnboundVcode/{id}")
     public Result<String> getUnboundVcode(@PathVariable("id") Long id) {
@@ -197,6 +213,30 @@ public class UserController {
     @GetMapping("statistics")
     public Map<String, Object> statistics() {
         return userService.statistics();
+    }
+
+    private ResponseEntity<byte[]> buildAvatarResponse(String fileName) {
+        String objectName = ML.MinIO.AVATAR_DIR + "/" + fileName;
+        try {
+            return this.buildImageResponse(objectName);
+        } catch (ServiceException e) {
+            if (ML.User.DEFAULT_AVATARS.contains(fileName)) {
+                throw e;
+            }
+            return this.buildImageResponse(ML.MinIO.AVATAR_DIR + "/" + ML.User.DEFAULT_AVATARS.get(0));
+        }
+    }
+
+    private ResponseEntity<byte[]> buildImageResponse(String objectName) {
+        String contentType = minioUtil.getObjectContentType(ML.MinIO.BUCKET_NAME, objectName);
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (contentType != null && !contentType.isBlank()) {
+            mediaType = MediaType.parseMediaType(contentType);
+        }
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePublic())
+                .contentType(mediaType)
+                .body(minioUtil.getObjectBytes(ML.MinIO.BUCKET_NAME, objectName));
     }
 
 

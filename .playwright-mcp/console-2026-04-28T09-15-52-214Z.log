@@ -1,0 +1,7 @@
+[    1276ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://192.168.211.132:9001/api/v1/buckets/mylesson/quota:0
+[    1287ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://192.168.211.132:9001/api/v1/buckets/mylesson/object-locking:0
+[    1294ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://192.168.211.132:9001/api/v1/buckets/mylesson/objects?prefix=ZXBpc29kZS12aWRlby1jb3Zlcg%3D%3D&with_versions=true:0
+[    1295ms] [ERROR] Error Getting Quota Status:  The specified bucket does not exist @ http://192.168.211.132:9001/static/js/2603.19110315.chunk.js:0
+[    1336ms] [ERROR] Error Getting Object Locking Status:  The specified bucket does not exist @ http://192.168.211.132:9001/static/js/2603.19110315.chunk.js:0
+[    1364ms] [ERROR] Error loading object details {code: 500, detailedMessage: The specified bucket does not exist, message: an error occurred, please try again} @ http://192.168.211.132:9001/static/js/2603.19110315.chunk.js:0
+[    1369ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://192.168.211.132:9001/api/v1/buckets/mylesson/retention:0

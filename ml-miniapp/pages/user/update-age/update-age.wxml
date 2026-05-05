@@ -1,1 +1,12 @@
-<view class="stub">功能开发中</view>
+<view class="page">
+  <van-field
+    label="年龄"
+    type="number"
+    value="{{age}}"
+    bind:change="onAgeChange"
+    placeholder="请输入年龄"
+    maxlength="2"
+    clearable
+  />
+  <van-button class="submit-btn" type="primary" block loading="{{saving}}" bind:tap="submit">保存</van-button>
+</view>

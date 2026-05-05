@@ -1,1 +1,11 @@
-<view class="stub">功能开发中</view>
+<view class="page">
+  <van-field
+    label="昵称"
+    value="{{nickname}}"
+    bind:change="onNicknameChange"
+    placeholder="请输入昵称"
+    maxlength="10"
+    clearable
+  />
+  <van-button class="submit-btn" type="primary" block loading="{{saving}}" bind:tap="submit">保存</van-button>
+</view>

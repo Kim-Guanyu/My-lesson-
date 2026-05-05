@@ -14,7 +14,9 @@
 <view class="banner">
   <swiper wx:if="{{banners && banners.length}}" autoplay="3000" circular>
     <swiper-item wx:for="{{banners}}" wx:key="id">
-      <van-image src="{{MINIO_BANNER}}/{{item.url}}" width="100%" height="150px" fit="fill"/>
+      <view bind:tap="tapBanner" data-course-id="{{item.courseId}}">
+        <van-image src="{{MINIO_BANNER}}{{item.url}}" width="100%" height="150px" fit="fill"/>
+      </view>
     </swiper-item>
   </swiper>
   <van-empty wx:else custom-class="no-banner-tip" image="error" description="暂无轮播图片"/>

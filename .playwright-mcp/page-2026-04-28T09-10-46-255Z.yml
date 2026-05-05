@@ -1,0 +1,130 @@
+- generic [ref=e100]:
+  - generic [ref=e102]:
+    - generic [ref=e103] [cursor=pointer]:
+      - img [ref=e105]
+      - img [ref=e110]
+    - generic [ref=e129]:
+      - generic [ref=e131]: User
+      - button "Object Browser" [ref=e132] [cursor=pointer]:
+        - generic [ref=e133]:
+          - img [ref=e135]
+          - generic [ref=e140]: Object Browser
+      - button "Access Keys" [ref=e141] [cursor=pointer]:
+        - generic [ref=e142]:
+          - img [ref=e144]
+          - generic [ref=e150]: Access Keys
+      - link "Documentation" [ref=e151] [cursor=pointer]:
+        - /url: https://min.io/docs/minio/linux/index.html?ref=con
+        - generic [ref=e152]:
+          - img [ref=e154]
+          - generic [ref=e159]: Documentation
+      - generic [ref=e161]: Administrator
+      - button "Buckets" [ref=e162] [cursor=pointer]:
+        - generic [ref=e163]:
+          - img [ref=e165]
+          - generic [ref=e173]: Buckets
+      - button "Policies" [ref=e174] [cursor=pointer]:
+        - generic [ref=e175]:
+          - img [ref=e177]
+          - generic [ref=e180]: Policies
+      - button "Identity" [ref=e182] [cursor=pointer]:
+        - generic [ref=e183]:
+          - img [ref=e185]
+          - generic [ref=e187]: Identity
+        - img [ref=e189]
+      - button "Monitoring" [ref=e196] [cursor=pointer]:
+        - generic [ref=e197]:
+          - img [ref=e199]
+          - generic [ref=e203]: Monitoring
+        - img [ref=e205]
+      - button "Events" [ref=e211] [cursor=pointer]:
+        - generic [ref=e212]:
+          - img [ref=e214]
+          - generic [ref=e220]: Events
+      - button "Tiering" [ref=e221] [cursor=pointer]:
+        - generic [ref=e222]:
+          - img [ref=e224]
+          - generic [ref=e230]: Tiering
+      - button "Site Replication" [ref=e231] [cursor=pointer]:
+        - generic [ref=e232]:
+          - img [ref=e234]
+          - generic [ref=e236]: Site Replication
+      - button "Settings" [ref=e237] [cursor=pointer]:
+        - generic [ref=e238]:
+          - img [ref=e240]
+          - generic [ref=e247]: Settings
+      - generic [ref=e249]: Subscription
+      - button "License" [ref=e250] [cursor=pointer]:
+        - generic [ref=e251]:
+          - generic [ref=e252]:
+            - img [ref=e253]
+            - img [ref=e258]
+          - generic [ref=e263]: License
+      - button "Health" [ref=e264] [cursor=pointer]:
+        - generic [ref=e265]:
+          - img [ref=e267]
+          - generic [ref=e270]: Health
+      - button "Performance" [ref=e271] [cursor=pointer]:
+        - generic [ref=e272]:
+          - img [ref=e274]
+          - generic [ref=e278]: Performance
+      - button "Profile" [ref=e279] [cursor=pointer]:
+        - generic [ref=e280]:
+          - img [ref=e282]
+          - generic [ref=e287]: Profile
+      - button "Inspect" [ref=e288] [cursor=pointer]:
+        - generic [ref=e289]:
+          - img [ref=e291]
+          - generic [ref=e293]: Inspect
+      - button "Call Home" [ref=e294] [cursor=pointer]:
+        - generic [ref=e295]:
+          - img [ref=e297]
+          - generic [ref=e299]: Call Home
+      - button "Sign Out" [ref=e303] [cursor=pointer]:
+        - generic [ref=e304]:
+          - img [ref=e306]
+          - generic [ref=e312]: Sign Out
+  - main [ref=e313]:
+    - generic [ref=e314]:
+      - generic [ref=e316]: Object Browser
+      - button [ref=e319] [cursor=pointer]:
+        - img [ref=e321]
+    - generic [ref=e328]:
+      - generic [ref=e329]:
+        - generic [ref=e331]:
+          - img [ref=e333]
+          - textbox "Filter Buckets" [ref=e339]
+        - button [ref=e343] [cursor=pointer]:
+          - img [ref=e345]
+      - generic [ref=e352]:
+        - generic:
+          - grid:
+            - row "Name Objects Size Access" [ref=e353]:
+              - columnheader "Name" [ref=e354]:
+                - generic [ref=e355]: Name
+              - columnheader "Objects" [ref=e356]:
+                - generic [ref=e357]: Objects
+              - columnheader "Size" [ref=e358]:
+                - generic [ref=e359]: Size
+              - columnheader "Access" [ref=e360]:
+                - generic [ref=e361]: Access
+            - rowgroup "grid" [ref=e362]:
+              - rowgroup [ref=e363]:
+                - row "row" [ref=e364]:
+                  - gridcell "gymshark" [ref=e365]:
+                    - generic [ref=e367]:
+                      - img [ref=e368]
+                      - generic [ref=e371]: gymshark
+                  - gridcell "3" [ref=e372]
+                  - gridcell "2.0 MiB" [ref=e373]
+                  - gridcell "R/W" [ref=e374]:
+                    - generic [ref=e375]: R/W
+                - row "row" [ref=e376]:
+                  - gridcell "my-lesson" [ref=e377]:
+                    - generic [ref=e379]:
+                      - img [ref=e380]
+                      - generic [ref=e383]: my-lesson
+                  - gridcell "12" [ref=e384]
+                  - gridcell "420.7 KiB" [ref=e385]
+                  - gridcell "R/W" [ref=e386]:
+                    - generic [ref=e387]: R/W

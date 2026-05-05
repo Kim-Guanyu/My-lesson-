@@ -1,15 +1,17 @@
 // 环境IP地址
 const HOST = 'localhost';
-const LINUX_HOST = '192.168.40.77';
+const LINUX_HOST = '192.168.211.132';
 const GATEWAY_HOST = `http://${HOST}:24101`;
 const SOCKET_SERVER = `ws://${HOST}:24106`;
-const MINIO_HOST = `http://${LINUX_HOST}:9001/mylesson/`;
-const MINIO_AVATAR = MINIO_HOST + 'avatar/';
+const MINIO_HOST = `http://${LINUX_HOST}:9000/my-lesson`;
+const USER_AVATAR_URL = GATEWAY_HOST + '/user-server/api/v1/user/avatar/';
+const MINIO_AVATAR = MINIO_HOST + '/avatar/';
 const MINIO_BANNER = MINIO_HOST + '/banner/';
 const MINIO_COURSE_COVER = MINIO_HOST + '/course-cover/';
 const MINIO_COURSE_SUMMARY = MINIO_HOST + '/course-summary/';
 const MINIO_EPISODE_VIDEO = MINIO_HOST + '/episode-video/';
 const MINIO_EPISODE_VIDEO_COVER = MINIO_HOST + '/episode-video-cover/';
+const MINIO_VIDEO = MINIO_HOST + '/video/';
 const UPLOAD_AVATAR_URL = GATEWAY_HOST + '/user-server/api/v1/user/uploadAvatar/';
 
 // 常用请求状态码
@@ -94,7 +96,8 @@ const ZODIAC_OPTIONS = [
 // 导出
 module.exports = {
     GATEWAY_HOST, SOCKET_SERVER, STATUS, RULE,
+    USER_AVATAR_URL,
     MINIO_AVATAR, MINIO_BANNER, MINIO_COURSE_COVER, MINIO_COURSE_SUMMARY,
-    MINIO_EPISODE_VIDEO, MINIO_EPISODE_VIDEO_COVER, UPLOAD_AVATAR_URL,
+    MINIO_EPISODE_VIDEO, MINIO_EPISODE_VIDEO_COVER, MINIO_VIDEO, UPLOAD_AVATAR_URL,
     PROJECT_TITLE, PROJECT_SUB_TITLE, PROVINCE_OPTIONS, ZODIAC_OPTIONS
 }

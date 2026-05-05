@@ -5,8 +5,8 @@ import org.springframework.data.elasticsearch.repository.ElasticsearchRepository
 
 import java.util.List;
 
-/** @author 周航宇 */
-public interface BarrageRepository extends ElasticsearchRepository<BarrageDoc, Long> {
+
+public interface BarrageRepository extends ElasticsearchRepository<BarrageDoc, String> {
 
     /**
      * 根据视频ID分页查询弹幕记录，并按时间升序排序
