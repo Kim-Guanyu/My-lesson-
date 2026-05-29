@@ -63,8 +63,35 @@ Page({
       const selectedCartIds = (that.data.courseIds || [])
         .map(id => courseIdToCartId[String(id)])
         .filter(Boolean);
-      that.setData({courseIdAndPrice, courseIdToCartId, selectedCartIds});
+      that.setData({courseIdAndPrice, courseIdToCartId, selectedCartIds}, () => {
+        that.syncAmountFromCart();
+      });
     }).catch(err => console.error(err));
+  },
+
+  sumCartPrices(courseIds, courseIdAndPrice) {
+    if (courseIds && courseIds.length > 0) {
+      let sum = 0;
+      for (let i in courseIds) {
+        sum += Number(courseIdAndPrice[String(courseIds[i])]) || 0;
+      }
+      return sum;
+    }
+    let sum = 0;
+    for (const key in courseIdAndPrice) {
+      sum += Number(courseIdAndPrice[key]) || 0;
+    }
+    return sum;
+  },
+
+  syncAmountFromCart() {
+    const {courseIds, courseIdAndPrice, coupons} = this.data;
+    const totalAmount = this.sumCartPrices(courseIds, courseIdAndPrice);
+    let payAmount = totalAmount;
+    if (coupons && coupons.cpPrice != null) {
+      payAmount = coupons.cpPrice > totalAmount ? 0 : totalAmount - coupons.cpPrice;
+    }
+    this.setData({totalAmount, payAmount});
   },
 
   pageMore() {
@@ -135,7 +162,6 @@ Page({
           'pageInfo.pageNum': 1
         });
         that.loadCartPage();
-        that.getTotalAmount();
       }).catch(err => console.log(err));
     });
   },
@@ -158,7 +184,6 @@ Page({
           'pageInfo.pageNum': 1
         });
         that.loadCartPage();
-        that.getTotalAmount();
       }).catch(err => console.log(err));
     });
   },
@@ -262,21 +287,6 @@ Page({
     });
   },
 
-  getTotalAmount() {
-    const user = wx.getStorageSync('user');
-    if (!user || !user.id) return;
-    const param = '/totalAmountByUserId/' + user.id;
-    api.get('cart', param).then(res => {
-      this.setData({
-        totalAmount: res,
-        payAmount: res
-      });
-    }).catch(err => {
-      console.error(err);
-      this.setData({totalAmount: 0, payAmount: 0});
-    });
-  },
-
   showDetail(ev) {
     const courseId = ev.currentTarget.dataset.courseId;
     util.page('/pages/course/detail/detail?courseId=' + courseId, false);
@@ -289,13 +299,11 @@ Page({
     const selectedCartIds = (courseIds || [])
       .map(id => courseIdToCartId[String(id)])
       .filter(Boolean);
-    let payAmount = 0;
-    let totalAmount = 0;
-    for (let i in courseIds) {
-      const courseId = courseIds[i];
-      const p = courseIdAndPrice[String(courseId)] || 0;
-      payAmount += p;
-      totalAmount += p;
+    const totalAmount = this.sumCartPrices(courseIds, courseIdAndPrice);
+    let payAmount = totalAmount;
+    const coupons = this.data.coupons;
+    if (coupons && coupons.cpPrice != null) {
+      payAmount = coupons.cpPrice > totalAmount ? 0 : totalAmount - coupons.cpPrice;
     }
     this.setData({courseIds, selectedCartIds, payAmount, totalAmount});
   },
@@ -304,7 +312,6 @@ Page({
     if (util.isLogin()) {
       this.setData({'pageInfo.pageNum': 1, carts: null});
       this.loadCartPage();
-      this.getTotalAmount();
     }
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({activeTab: 2});
@@ -315,7 +322,6 @@ Page({
     if (wx.getStorageSync('token')) {
       this.setData({'pageInfo.pageNum': 1, carts: null});
       this.loadCartPage();
-      this.getTotalAmount();
     }
   },
 

@@ -1,16 +1,20 @@
 <view class="detail-page" wx:if="{{course}}">
-  <scroll-view class="detail-scroll" scroll-y="true">
-    <van-sticky>
-      <view class="detail-video" wx:if="{{videoSrc}}">
-        <video id="courseVideo" src="{{videoSrc}}" poster="{{videoPoster}}" controls show-center-play-btn show-fullscreen-btn enable-play-gesture enable-danmu danmu-list="{{danmuList}}" danmu-btn object-fit="contain" autoplay title="{{videoTitle}}" bindtimeupdate="onVideoTimeUpdate"></video>
+  <view class="detail-header">
+    <view class="detail-video" wx:if="{{videoReady}}">
+      <view class="video-wrap">
+        <video id="courseVideo{{videoInstanceId}}" src="{{videoSrc}}" poster="{{videoPoster}}" controls show-center-play-btn show-fullscreen-btn enable-play-gesture object-fit="contain" autoplay title="{{videoTitle}}" bindtimeupdate="onVideoTimeUpdate" bindseekcomplete="onVideoSeekComplete" binderror="onVideoError"></video>
+        <view class="danmu-layer">
+          <view class="danmu-fly" wx:for="{{activeDanmu}}" wx:key="id" style="color: {{item.color}}; top: {{item.top}}%;">{{item.text}}</view>
+        </view>
       </view>
-    </van-sticky>
-
+    </view>
     <view class="danmu-bar">
-      <input class="danmu-input" placeholder="发一条弹幕" value="{{danmuText}}" bindinput="onDanmuInput" />
+      <input class="danmu-input" placeholder="发一条弹幕" placeholder-class="danmu-placeholder" value="{{danmuText}}" bindinput="onDanmuInput" confirm-type="send" bindconfirm="sendDanmu" />
       <button class="danmu-send" type="primary" size="mini" bindtap="sendDanmu">发送</button>
     </view>
+  </view>
 
+  <scroll-view class="detail-scroll" scroll-y="true" enhanced show-scrollbar="{{false}}">
     <view class="detail-main">
       <van-divider dashed>课程信息</van-divider>
       <van-cell-group inset>
@@ -38,10 +42,12 @@
   </scroll-view>
 
   <view class="detail-actions">
-    <van-button icon="service-o" type="default" bind:tap="chatMe">客服</van-button>
-    <van-button icon="shopping-cart-o" type="warning" bind:tap="toCart">购物车</van-button>
-    <van-button type="primary" bind:tap="addToCart">加入购物车</van-button>
-    <van-button type="danger" bind:tap="pay">立即购买</van-button>
+    <view class="detail-actions-row">
+      <van-button icon="service-o" type="default" size="small" bind:tap="chatMe">客服</van-button>
+      <van-button icon="shopping-cart-o" type="warning" size="small" bind:tap="toCart">购物车</van-button>
+      <van-button type="primary" size="small" bind:tap="addToCart">加入购物车</van-button>
+    </view>
+    <van-button class="detail-buy-btn" type="danger" block bind:tap="pay">立即购买</van-button>
   </view>
 </view>
 

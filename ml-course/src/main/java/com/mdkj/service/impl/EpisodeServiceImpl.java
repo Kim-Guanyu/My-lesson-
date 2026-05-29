@@ -26,10 +26,14 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import com.mdkj.service.CourseService;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com.mdkj.entity.table.EpisodeTableDef.EPISODE;
 
@@ -44,6 +48,9 @@ public class EpisodeServiceImpl extends ServiceImpl<EpisodeMapper, Episode>  imp
 
     @Resource
     private BarrageRepository barrageRepository;
+
+    @Resource
+    private CourseService courseService;
     @Override
     public boolean insert(EpisodeInsertDTO dto) {
         String title = dto.getTitle();
@@ -311,7 +318,37 @@ public class EpisodeServiceImpl extends ServiceImpl<EpisodeMapper, Episode>  imp
 
     @Override
     public List<BarrageDoc> searchBarrage(String episodeId) {
-        return barrageRepository.findByEpisodeIdOrderByTime(episodeId);
+        return sortBarrageByTime(barrageRepository.findByEpisodeIdOrderByTime(episodeId));
+    }
+
+    @Override
+    public List<BarrageDoc> searchBarrageForCourse(Long courseId) {
+        Set<String> episodeIds = new LinkedHashSet<>();
+        episodeIds.add(String.valueOf(courseId));
+        Course course = courseService.select(courseId);
+        if (course.getSeasons() != null) {
+            course.getSeasons().forEach(season -> {
+                if (season.getEpisodes() != null) {
+                    season.getEpisodes().forEach(episode -> episodeIds.add(String.valueOf(episode.getId())));
+                }
+            });
+        }
+        return sortBarrageByTime(barrageRepository.findByEpisodeIdIn(episodeIds));
+    }
+
+    private List<BarrageDoc> sortBarrageByTime(List<BarrageDoc> barrages) {
+        if (barrages == null || barrages.isEmpty()) {
+            return List.of();
+        }
+        return barrages.stream()
+                .sorted(Comparator.comparingDouble(b -> {
+                    try {
+                        return Double.parseDouble(b.getTime());
+                    } catch (Exception e) {
+                        return 0D;
+                    }
+                }))
+                .toList();
     }
 
 

@@ -29,5 +29,6 @@ public interface EpisodeService extends IService<Episode> {
     List<EpisodeExcelDTO> getExcelData();
     List<BarrageDoc> searchBarrage(String episodeId);
 
+    List<BarrageDoc> searchBarrageForCourse(Long courseId);
 
 }

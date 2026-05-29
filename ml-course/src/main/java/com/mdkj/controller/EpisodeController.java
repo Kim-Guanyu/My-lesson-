@@ -145,6 +145,12 @@ public class EpisodeController {
         EasyExcelUtil.download(response, "集次统计表", episodeService.getExcelData());
     }
 
+    @Operation(summary = "查询 - 课程弹幕列表", description = "查询课程下全部弹幕（含各集次及历史 courseId 维度）")
+    @GetMapping("/searchBarrage/course/{courseId}")
+    public List<BarrageDoc> searchBarrageForCourse(@PathVariable("courseId") Long courseId) {
+        return episodeService.searchBarrageForCourse(courseId);
+    }
+
     @Operation(summary = "查询 - 弹幕列表", description = "查询弹幕列表")
     @GetMapping("/searchBarrage/{episodeId}")
     public List<BarrageDoc> searchBarrage(@PathVariable("episodeId") String episodeId) {
