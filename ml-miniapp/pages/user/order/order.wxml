@@ -1,1 +1,70 @@
-<view class="stub">功能开发中</view>
+<view wx:if="{{!isLogin}}" class="login-tip">
+  <van-empty image="error" description="登录后查看我的订单"/>
+  <van-button class="login-btn" bind:tap="toLogin" type="danger" round>去登录</van-button>
+</view>
+
+<view wx:else class="order-page">
+  <van-tabs active="{{ activeTab }}" bind:change="onTabChange" color="#f9ed69" title-active-color="#f9ed69" background="#252a34">
+    <van-tab wx:for="{{statusTabs}}" wx:key="name" name="{{item.name}}" title="{{item.title}}"/>
+  </van-tabs>
+
+  <scroll-view class="order-list" scroll-y bindscrolltolower="pageMore">
+    <van-empty wx:if="{{!loading && orders.length === 0}}" image="error" description="暂无订单"/>
+
+    <view class="order-card" wx:for="{{orders}}" wx:key="id">
+      <view class="order-head">
+        <view class="order-head-left">
+          <van-tag type="primary" size="medium">{{item.orderType}}</van-tag>
+          <text class="order-sn">{{item.sn}}</text>
+        </view>
+        <van-tag type="{{item.status === 1 ? 'success' : item.status === 0 ? 'warning' : 'default'}}">{{item.statusText}}</van-tag>
+      </view>
+
+      <view class="order-details" wx:if="{{item.orderDetails && item.orderDetails.length}}">
+        <view class="detail-item" wx:for="{{item.orderDetails}}" wx:for-item="detail" wx:key="id">
+          <van-image class="detail-cover" src="{{MINIO}}{{detail.courseCover}}" width="120" height="80" fit="cover" radius="8"/>
+          <view class="detail-body">
+            <text class="detail-title">{{detail.courseTitle}}</text>
+            <text class="detail-price">课程价 ¥{{detail.coursePrice}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="order-info">
+        <text>下单时间：{{item.createdText}}</text>
+        <text wx:if="{{item.status === 1}}">支付方式：{{item.payTypeText}}</text>
+        <view class="amount-row">
+          <text wx:if="{{item.totalAmount !== item.payAmount}}">原价 ¥{{item.totalAmountText}}</text>
+          <text class="pay-amount">应付 ¥{{item.payAmountText}}</text>
+        </view>
+      </view>
+
+      <view class="order-foot" wx:if="{{item.status === 0}}">
+        <van-button size="small" type="danger" round bind:tap="continuePay" data-sn="{{item.sn}}">继续支付</van-button>
+      </view>
+    </view>
+
+    <view class="loading-tip" wx:if="{{loading}}">加载中…</view>
+    <view class="loading-tip" wx:elif="{{orders.length > 0 && pageInfo.pageNum >= pageInfo.totalPage}}">没有更多了</view>
+  </scroll-view>
+</view>
+
+<van-dialog class="pay-dialog" title="支付订单" show="{{ payDialogShow }}" show-confirm-button="{{false}}" use-slot width="400px">
+  <van-divider dashed/>
+  <view class="countdown-time">
+    <van-count-down class="pay-countdown" wx:if="{{countDownShow}}" time="{{ time }}" bind:change="countDown" bind:finish="onCountDownFinish" use-slot>
+      <view class="title">【请在15分钟内完成付款】</view>
+      <text class="item">{{ timeData.hours }}</text>
+      <text class="delimiter">时 </text>
+      <text class="item">{{ timeData.minutes }}</text>
+      <text class="delimiter">分 </text>
+      <text class="item">{{ timeData.seconds }}</text>
+      <text class="delimiter">秒 </text>
+    </van-count-down>
+  </view>
+  <van-divider dashed/>
+  <view class="pay-dialog-label">支付宝扫码</view>
+  <van-image class="qrcode-image" src="{{qrCodeImage}}" width="300" height="200"/>
+  <van-divider dashed/>
+  <van-button class="cancel-btn" bind:tap="cancelPay" block type="info">取消支付</van-button>
+</van-dialog>

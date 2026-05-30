@@ -1,2 +1,46 @@
 @import "../../../app.scss";
-.stub { padding: 40rpx; color: #eaeaea; }
+
+.login-tip {
+  padding-top: 120rpx;
+  text-align: center;
+
+  .login-btn {
+    width: 300rpx;
+    margin-top: 40rpx;
+  }
+}
+
+.course-list {
+  height: 100vh;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.course-list-grid {
+  margin-top: 10rpx;
+}
+
+.course-item {
+  .title {
+    margin-top: 12rpx;
+    font-size: 28rpx;
+    color: $yellow;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .info {
+    margin-top: 8rpx;
+    font-size: 22rpx;
+    color: $white;
+    line-height: 1.6;
+  }
+}
+
+.loading-tip {
+  text-align: center;
+  padding: 30rpx;
+  color: $white;
+  font-size: 26rpx;
+}

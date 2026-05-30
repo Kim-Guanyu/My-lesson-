@@ -1,6 +1,7 @@
 package com.mdkj.controller;
 
 import com.mdkj.dto.*;
+import com.mdkj.util.Result;
 import com.mdkj.vo.PageVO;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -123,10 +124,10 @@ public class SeckillController {
         return seckillService.today();
     }
 
-    @Operation(summary = "开始秒杀", description = "秒杀购买指定的课程")
+    @Operation(summary = "开始秒杀", description = "秒杀购买指定的课程，返回订单编号")
     @PostMapping("kill")
-    public boolean kill(@Validated @RequestBody KillDTO dto) {
-        return seckillService.kill(dto);
+    public Result<String> kill(@Validated @RequestBody KillDTO dto) {
+        return new Result<>(seckillService.kill(dto));
     }
 
 

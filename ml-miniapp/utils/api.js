@@ -8,7 +8,7 @@ function apiPrefixFormat(module) {
   const serviceModuleMap = {
     'user-server': ['menu', 'role', 'user'],
     'course-server': ['category', 'comment', 'course', 'episode', 'report', 'season'],
-    'sale-server': ['article', 'banner', 'coupons', 'notice', 'seckill', 'seckillDetail'],
+    'sale-server': ['article', 'banner', 'coupons', 'notice', 'seckill', 'seckillDetail', 'customerService'],
     'order-server': ['cart', 'order', 'orderDetail']
   };
   const microServiceName = Object.keys(serviceModuleMap).find(key => serviceModuleMap[key].includes(module));

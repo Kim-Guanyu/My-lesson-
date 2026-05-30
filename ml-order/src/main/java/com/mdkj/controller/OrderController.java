@@ -7,9 +7,11 @@ import cn.hutool.json.JSONUtil;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.payment.facetoface.models.AlipayTradePrecreateResponse;
 import com.mdkj.dto.*;
+import com.mdkj.exception.ServiceException;
 import com.mdkj.util.AlipayUtil;
 import com.mdkj.util.ML;
 import com.mdkj.util.Result;
+import com.mdkj.util.ResultCode;
 import com.mdkj.vo.PageVO;
 import com.mybatisflex.core.paginate.Page;
 import jakarta.annotation.Resource;
@@ -29,6 +31,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -114,6 +117,12 @@ public class OrderController {
         return orderService.page(dto);
     }
 
+    @Operation(summary = "查询 - 我的订单", description = "当前用户分页查询自己的订单")
+    @GetMapping("myPage")
+    public PageVO<Order> myPage(@Validated OrderPageDTO dto) {
+        return orderService.myPage(dto);
+    }
+
     @Operation(summary = "修改 - 单条修改", description = "按主键修改一条订单记录")
     @PutMapping("update")
     public boolean update(@Validated @RequestBody OrderUpdateDTO dto) {
@@ -144,16 +153,43 @@ public class OrderController {
         return new Result<>(orderService.prePay(dto));
     }
 
+    @Operation(summary = "添加 - 秒杀预支付", description = "秒杀成功后创建未支付订单（MQ消费端调用）")
+    @PostMapping("/seckillPrePay")
+    public Result<String> seckillPrePay(@RequestBody OrderMessage orderMessage) {
+        return new Result<>(orderService.createSeckillOrder(orderMessage));
+    }
+
+    @Operation(summary = "查询 - 未支付订单号", description = "查询用户对某课程的待付款订单号")
+    @GetMapping("/findUnpaidSn")
+    public Result<String> findUnpaidSn(@RequestParam("fkUserId") Long fkUserId,
+                                       @RequestParam("fkCourseId") Long fkCourseId) {
+        return new Result<>(orderService.findUnpaidSn(fkUserId, fkCourseId));
+    }
+
+    @Operation(summary = "查询 - 按订单号查询", description = "根据订单号查询订单详情")
+    @GetMapping("/getBySn/{sn}")
+    public Result<Order> getBySn(@PathVariable("sn") String sn) {
+        return new Result<>(orderService.getBySn(sn));
+    }
+
     @SneakyThrows
     @Operation(summary = "查询 - 预支付二维码", description = "获取预支付二维码")
     @PostMapping("/getQrCode")
     public void getQrCode(HttpServletResponse resp, @RequestBody QrCodeDTO qrCodeDTO) {
+        Order order = orderService.getBySn(qrCodeDTO.getSn());
+        if (!ML.Order.UNPAID.equals(order.getStatus())) {
+            throw new ServiceException(ResultCode.SERVER_ERROR, "订单状态不可支付");
+        }
+        Double payAmount = order.getPayAmount();
+        if (payAmount == null || payAmount <= 0) {
+            throw new ServiceException(ResultCode.SERVER_ERROR, "订单支付金额异常");
+        }
         // 初始化配置
         Factory.setOptions(AlipayUtil.getConfig());
         // 发起预支付请求
         AlipayTradePrecreateResponse alipayTradePrecreateResponse = Factory.Payment
                 .FaceToFace()
-                .preCreate("ML订单支付", qrCodeDTO.getSn(), qrCodeDTO.getPayAmount().toString());
+                .preCreate("ML订单支付", qrCodeDTO.getSn(), String.format("%.2f", payAmount));
         // 解析预支付响应
         JSONObject response = JSONUtil.parseObj(alipayTradePrecreateResponse.getHttpBody()).getJSONObject("alipay_trade_precreate_response");
         // 设置响应头：响应类型为图片，不缓存（addHeader 项是为了兼容老版本浏览器）
@@ -172,20 +208,25 @@ public class OrderController {
 
     @Operation(summary = "回调 - 预支付回调", description = "支付成功后，支付宝自动回调的接口")
     @PostMapping("/prePayNotify")
-    public boolean prePayNotify(HttpServletRequest request) {
-        String sn = request.getParameter("out_trade_no");
-        if (request.getParameter("trade_status").equals("TRADE_SUCCESS")) {
-            System.out.println("交易主题: " + request.getParameter("subject"));
-            System.out.println("交易状态: " + request.getParameter("trade_status"));
-            System.out.println("交易凭证: " + request.getParameter("trade_no"));
-            System.out.println("订单编号: " + request.getParameter("out_trade_no"));
-            System.out.println("交易金额: " + request.getParameter("total_amount"));
-            System.out.println("买家编号: " + request.getParameter("buyer_id"));
-            System.out.println("付款时间: " + request.getParameter("gmt_payment"));
-            System.out.println("付款金额: " + request.getParameter("buyer_pay_amount"));
+    public String prePayNotify(HttpServletRequest request) {
+        Factory.setOptions(AlipayUtil.getConfig());
+        Map<String, String> params = new HashMap<>();
+        request.getParameterMap().forEach((key, values) -> params.put(key, values[0]));
+        try {
+            if (!Factory.Payment.Common().verifyNotify(params)) {
+                return "failure";
+            }
+        } catch (Exception e) {
+            return "failure";
         }
-        // 修改订单状态为已支付
-        return orderService.updateStatusBySn(sn, ML.Order.PAID);
+        String tradeStatus = params.get("trade_status");
+        if (!"TRADE_SUCCESS".equals(tradeStatus) && !"TRADE_FINISHED".equals(tradeStatus)) {
+            return "success";
+        }
+        String sn = params.get("out_trade_no");
+        Double payAmount = Double.parseDouble(params.get("total_amount"));
+        orderService.paySuccessBySn(sn, payAmount);
+        return "success";
     }
 
     @Operation(summary = "查询 - 订单状态", description = "根据订单号查询订单状态（是否已支付）")

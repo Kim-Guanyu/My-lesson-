@@ -1,5 +1,28 @@
 <view class="chat-page">
-  <view class="hint">客服功能需对接后端与 WebSocket，此处为占位页。</view>
-  <van-field value="{{ question }}" bind:change="onQ" placeholder="请输入问题" border="{{false}}"/>
-  <van-button type="info" block bind:tap="ask">提问（演示）</van-button>
+  <scroll-view class="chat-body" scroll-y scroll-into-view="{{scrollIntoView}}" scroll-with-animation enhanced show-scrollbar="{{false}}">
+    <view class="msg-item {{item.role === 'user' ? 'msg-user' : 'msg-bot'}}" wx:for="{{messages}}" wx:key="id" id="msg-{{item.id}}">
+      <view class="avatar">{{item.role === 'user' ? '我' : '客'}}</view>
+      <view class="bubble-wrap">
+        <view class="bubble">{{item.content}}</view>
+        <view class="time">{{item.time}}</view>
+      </view>
+    </view>
+    <view class="msg-item msg-bot" wx:if="{{sending}}">
+      <view class="avatar">客</view>
+      <view class="bubble-wrap">
+        <view class="bubble typing">正在输入...</view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="faq-bar" wx:if="{{faqList.length}}">
+    <scroll-view scroll-x class="faq-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="faq-chip" wx:for="{{faqList}}" wx:key="question" data-question="{{item.question}}" bind:tap="tapFaq">{{item.question}}</view>
+    </scroll-view>
+  </view>
+
+  <view class="chat-input-bar">
+    <input class="chat-input" value="{{question}}" bindinput="onInput" placeholder="请输入您的问题" confirm-type="send" bindconfirm="onSend"/>
+    <van-button class="send-btn" type="info" size="small" bind:tap="onSend" loading="{{sending}}" disabled="{{sending}}">发送</van-button>
+  </view>
 </view>

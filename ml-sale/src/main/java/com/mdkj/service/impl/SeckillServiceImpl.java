@@ -2,12 +2,14 @@ package com.mdkj.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.mdkj.dto.*;
 import com.mdkj.exception.ServiceException;
 import com.mdkj.mapper.SeckillDetailMapper;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
+import com.mdkj.util.Result;
 import com.mdkj.util.ResultCode;
 import com.mdkj.vo.PageVO;
 import com.mybatisflex.core.paginate.Page;
@@ -15,6 +17,7 @@ import com.mybatisflex.core.query.QueryChain;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.mdkj.entity.Seckill;
+import com.mdkj.feign.OrderFeign;
 import com.mdkj.mapper.SeckillMapper;
 import com.mdkj.service.SeckillService;
 import jakarta.annotation.Resource;
@@ -56,6 +59,8 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
     private SeckillMapper seckillMapper;
     @Resource
     private RocketMQTemplate rocketmqTemplate;
+    @Resource
+    private OrderFeign orderFeign;
 
     @Override
     public boolean insert(SeckillInsertDTO dto) {
@@ -221,7 +226,7 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
 
 
     @Override
-    public boolean kill(KillDTO dto) {
+    public String kill(KillDTO dto) {
         Long fkSeckillId = dto.getFkSeckillId();
         Long fkCourseId = dto.getFkCourseId();
 
@@ -236,29 +241,41 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
         if (status.equals(ML.Seckill.NOT_START)) {
             throw new ServiceException(ResultCode.SECKILL_NOT_START, fkSeckillId + "号秒杀活动未开始");
         } else if (status.equals(ML.Seckill.STARTED)) {
-            // 开始秒杀
             final String KEY = ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId;
 
-            // 加锁：30秒后过期，线程存活状态下，每10秒自动续期一次
+            // 若已有待付款订单，直接返回订单号继续支付
+            Result<String> unpaidResult = orderFeign.findUnpaidSn(dto.getFkUserId(), fkCourseId);
+            if (ObjectUtil.isNotNull(unpaidResult) && StrUtil.isNotBlank(unpaidResult.getData())) {
+                log.info("用户 {} 已有 {} 号课程待付款订单 {}", dto.getFkUserId(), fkCourseId, unpaidResult.getData());
+                return unpaidResult.getData();
+            }
+
             RLock lock = redissonClient.getLock("skLock");
             lock.lock(30, TimeUnit.SECONDS);
 
             try {
-                // 判断库存充足：扣减库存
-                if (Integer.parseInt(redis.get(KEY)) > 0) {
-                    redis.incr(KEY, -1);
-                    // MQ发送到订单微服务
-                    OrderMessage orderMessage = new OrderMessage();
-                    orderMessage.setFkUserId(dto.getFkUserId());
-                    orderMessage.setFkCourseId(fkCourseId);
-                    orderMessage.setSkPrice(dto.getSkPrice());
-                    orderMessage.setPrice(dto.getPrice());
-                    rocketmqTemplate.convertAndSend("ml-topic:ml-tag", orderMessage);
-                    log.info("MQ：订单消息发送成功！");
-                    return true;
-                } else {
+                String stockStr = redis.get(KEY);
+                if (stockStr == null || Integer.parseInt(stockStr) <= 0) {
                     throw new ServiceException(ResultCode.SERVER_ERROR, "库存不足，秒杀失败");
                 }
+                redis.incr(KEY, -1);
+
+                String sn = RandomUtil.randomNumbers(19);
+                OrderMessage orderMessage = new OrderMessage();
+                orderMessage.setSn(sn);
+                orderMessage.setFkUserId(dto.getFkUserId());
+                orderMessage.setFkCourseId(fkCourseId);
+                orderMessage.setSkPrice(dto.getSkPrice());
+                orderMessage.setPrice(dto.getPrice());
+
+                try {
+                    rocketmqTemplate.convertAndSend("ml-topic:ml-tag", orderMessage);
+                    log.info("秒杀 MQ 消息发送成功，订单号 {}", sn);
+                } catch (Exception e) {
+                    redis.incr(KEY, 1);
+                    throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀下单失败，请稍后重试");
+                }
+                return sn;
             } finally {
                 lock.unlock();
             }

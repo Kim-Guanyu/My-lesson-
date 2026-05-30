@@ -27,6 +27,11 @@ public class PrePayDTO implements Serializable {
 	@DecimalMin(value = "0", message = "订单总金额不能小于0元")
 	private Double totalAmount;
 
+	@Schema(description = "实际支付金额")
+	@NotNull(message = "实际支付金额不能为空")
+	@DecimalMin(value = "0", message = "实际支付金额不能小于0元")
+	private Double payAmount;
+
 	@Schema(description = "优惠卷ID：下单时使用的优惠卷")
 	private Long fkCouponsId;
 }

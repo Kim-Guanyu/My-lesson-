@@ -1,6 +1,7 @@
 const api = require('../../../utils/api.js');
 const util = require('../../../utils/util.js');
 const constant = require('../../../utils/const.js');
+const pay = require('../../../utils/pay.js');
 
 Page({
   data: {
@@ -21,7 +22,13 @@ Page({
     legacyEpisodeId: null,
     barrageHistoryLoaded: false,
     videoReady: false,
-    videoInstanceId: 0
+    videoInstanceId: 0,
+    payDialogShow: false,
+    time: 15 * 60 * 1000,
+    timeData: {},
+    countDownShow: false,
+    qrCodeImage: '',
+    sn: ''
   },
 
   resolveBarrageIds(course, courseId) {
@@ -324,13 +331,60 @@ Page({
   },
 
   chatMe() {
-    util.page('/pages/course/detail/chat/chat');
+    const course = this.data.course;
+    let url = '/pages/course/detail/chat/chat';
+    if (course && course.id) {
+      url += '?courseId=' + course.id;
+      if (course.title) {
+        url += '&courseTitle=' + encodeURIComponent(course.title);
+      }
+    }
+    util.page(url, false);
   },
 
   pay() {
-    if (util.isLogin()) {
-      util.tip('功能暂未开放');
+    const that = this;
+    if (!util.isLogin()) {
+      util.error('请先登录');
+      return;
     }
+    const course = this.data.course;
+    if (!course || !course.id) {
+      util.error('课程信息加载中');
+      return;
+    }
+    const price = Number(course.price) || 0;
+    const params = {
+      fkUserId: wx.getStorageSync('user').id,
+      courseIds: [course.id],
+      totalAmount: price,
+      payAmount: price
+    };
+    api.post('order', '/prePay', params).then(sn => {
+      pay.openPayDialog(that, sn, {
+        onSuccess() {
+          util.page('/pages/user/order/order');
+        }
+      });
+    }).catch(err => console.error(err));
+  },
+
+  cancelPay() {
+    pay.cancelPay(this, {
+      onCancel() {
+        util.page('/pages/user/order/order');
+      }
+    });
+  },
+
+  countDown(ev) {
+    if (this.data.countDownShow) {
+      this.setData({timeData: ev.detail});
+    }
+  },
+
+  onCountDownFinish() {
+    pay.onCountDownFinish(this);
   },
 
   onLoad(options) {
@@ -360,6 +414,7 @@ Page({
   },
 
   onUnload() {
+    pay.onUnload(this);
     if (this._wsReady || this._wsConnecting) {
       wx.closeSocket();
     }

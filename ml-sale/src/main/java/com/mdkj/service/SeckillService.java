@@ -26,9 +26,9 @@ public interface SeckillService extends IService<Seckill> {
      * 秒杀指定商品
      *
      * @param dto 秒杀实体类
-     * @return 今日的秒杀活动数据
+     * @return 订单编号
      */
-    boolean kill(KillDTO dto);
+    String kill(KillDTO dto);
 
 
 }

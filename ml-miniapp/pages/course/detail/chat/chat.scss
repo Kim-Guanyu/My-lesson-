@@ -1,12 +1,131 @@
 @import "../../../../app.scss";
 
 .chat-page {
-  padding: 30rpx;
-  text-align: left;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: $bg-gray;
 }
 
-.hint {
-  color: $gray;
-  margin-bottom: 24rpx;
+.chat-body {
+  flex: 1;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.msg-item {
+  display: flex;
+  margin-bottom: 28rpx;
+  align-items: flex-start;
+}
+
+.msg-user {
+  flex-direction: row-reverse;
+
+  .bubble-wrap {
+    align-items: flex-end;
+  }
+
+  .bubble {
+    background: $yellow;
+    color: $black;
+  }
+
+  .avatar {
+    margin-left: 16rpx;
+    margin-right: 0;
+    background: $orange;
+  }
+}
+
+.msg-bot {
+  .bubble {
+    background: $black;
+    color: $white;
+  }
+
+  .avatar {
+    background: $subBlack;
+    color: $yellow;
+  }
+}
+
+.avatar {
+  width: 64rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  border-radius: 50%;
+  font-size: 24rpx;
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+}
+
+.bubble {
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
   font-size: 28rpx;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.typing {
+  color: $gray;
+}
+
+.time {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: $gray;
+}
+
+.faq-bar {
+  flex-shrink: 0;
+  padding: 12rpx 0 12rpx 20rpx;
+  border-top: 1rpx solid $subBlack;
+}
+
+.faq-scroll {
+  white-space: nowrap;
+}
+
+.faq-chip {
+  display: inline-block;
+  margin-right: 16rpx;
+  padding: 12rpx 24rpx;
+  background: $black;
+  color: $yellow;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+}
+
+.chat-input-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: $bg-gray;
+  border-top: 1rpx solid $subBlack;
+}
+
+.chat-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 24rpx;
+  background: $black;
+  color: $white;
+  border-radius: 36rpx;
+  font-size: 28rpx;
+}
+
+.send-btn {
+  flex-shrink: 0;
 }

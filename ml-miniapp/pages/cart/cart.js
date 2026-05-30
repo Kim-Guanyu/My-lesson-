@@ -1,15 +1,6 @@
 const util = require('../../utils/util.js');
 const api = require('../../utils/api.js');
-const constant = require('../../utils/const.js');
-
-function arrayBufferToBase64(buffer) {
-  if (wx.arrayBufferToBase64) return wx.arrayBufferToBase64(buffer);
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
-  return wx.base64Encode ? wx.base64Encode(binary) : binary;
-}
+const pay = require('../../utils/pay.js');
 
 Page({
   data: {
@@ -23,7 +14,7 @@ Page({
     courseIds: [],
     courseIdToCartId: {},
     selectedCartIds: [],
-    MINIO_COURSE_COVER: constant.MINIO_COURSE_COVER,
+    MINIO_COURSE_COVER: require('../../utils/const.js').MINIO_COURSE_COVER,
     pageInfo: {pageNum: 1, pageSize: 8, totalPage: 0, totalRow: 0},
     payDialogShow: false,
     time: 15 * 60 * 1000,
@@ -111,6 +102,7 @@ Page({
     let code = typeof ev.detail === 'string' ? ev.detail : (ev.detail && ev.detail.value);
     if (!code) code = that.data.couponsCode;
     if (!code) return;
+    const constant = require('../../utils/const.js');
     if (!constant.RULE.CODE[0].pattern.test(code)) {
       util.tip(constant.RULE.CODE[0].message);
       return;
@@ -209,6 +201,10 @@ Page({
 
   openPayDialog() {
     const that = this;
+    if (!util.isLogin()) {
+      util.error('请先登录');
+      return;
+    }
     if (this.data.courseIds.length <= 0) {
       util.error('至少选择一项');
       return;
@@ -222,51 +218,20 @@ Page({
       fkCouponsId
     };
     api.post('order', '/prePay', params).then(sn => {
-      wx.request({
-        url: constant.GATEWAY_HOST + '/order-server/api/v1/order/getQrCode',
-        method: 'POST',
-        data: {sn, payAmount: that.data.payAmount},
-        header: {token: wx.getStorageSync('token')},
-        responseType: 'arraybuffer',
-        success(res) {
-          if (res.statusCode !== 200) {
-            util.error('获取二维码失败');
-            return;
-          }
-          that.setData({
-            sn,
-            qrCodeImage: 'data:image/png;base64,' + arrayBufferToBase64(res.data),
-            payDialogShow: true,
-            countDownShow: true
-          });
-          if (that._payTimer) clearInterval(that._payTimer);
-          that._payTimer = setInterval(() => {
-            api.get('order', '/checkStatusBySn/' + sn).then(ok => {
-              if (ok === true) {
-                util.success('支付成功');
-                clearInterval(that._payTimer);
-                that._payTimer = null;
-                that.setData({payDialogShow: false, countDownShow: false});
-                util.page('/pages/user/order/order');
-              }
-            }).catch(() => {});
-          }, 2000);
+      pay.openPayDialog(that, sn, {
+        onSuccess() {
+          util.page('/pages/user/order/order');
         }
       });
     }).catch(err => console.log(err));
   },
 
   cancelPay() {
-    util.success('取消支付成功');
-    if (this._payTimer) {
-      clearInterval(this._payTimer);
-      this._payTimer = null;
-    }
-    this.setData({
-      payDialogShow: false,
-      countDownShow: false
+    pay.cancelPay(this, {
+      onCancel() {
+        util.page('/pages/user/order/order');
+      }
     });
-    util.page('/pages/user/order/order');
   },
 
   countDown(ev) {
@@ -276,15 +241,7 @@ Page({
   },
 
   onCountDownFinish() {
-    util.error('支付超时');
-    if (this._payTimer) {
-      clearInterval(this._payTimer);
-      this._payTimer = null;
-    }
-    this.setData({
-      payDialogShow: false,
-      countDownShow: false
-    });
+    pay.onCountDownFinish(this);
   },
 
   showDetail(ev) {
@@ -326,6 +283,6 @@ Page({
   },
 
   onUnload() {
-    if (this._payTimer) clearInterval(this._payTimer);
+    pay.onUnload(this);
   }
 });

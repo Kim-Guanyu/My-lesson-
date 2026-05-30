@@ -10,6 +10,9 @@ import org.hibernate.validator.constraints.Range;
 @Schema(name = "订单分页DTO")  
 @Data
 public class OrderPageDTO extends PageDTO {  
+    @Schema(description = "用户ID")
+    private Long fkUserId;
+
     @Schema(description = "编号")
     private String sn;
     @Schema(description = "状态")

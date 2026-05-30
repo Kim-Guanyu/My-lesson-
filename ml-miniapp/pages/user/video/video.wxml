@@ -1,1 +1,28 @@
-<view class="stub">功能开发中</view>
+<view wx:if="{{!isLogin}}" class="login-tip">
+  <van-empty image="error" description="登录后查看我的课程"/>
+  <van-button class="login-btn" bind:tap="toLogin" type="danger" round>去登录</van-button>
+</view>
+
+<scroll-view wx:else class="course-list" scroll-y bindscrolltolower="pageMore">
+  <van-empty wx:if="{{!loading && courses.length === 0}}" image="error" description="暂无已购课程，去选购吧"/>
+
+  <van-grid wx:if="{{courses.length > 0}}" class="course-list-grid" column-num="2" gutter="20rpx">
+    <van-grid-item content-class="course-item" wx:for="{{courses}}" wx:key="id" data-course-id="{{item.fkCourseId}}" bind:tap="showDetail" use-slot>
+      <van-image src="{{MINIO_COURSE_COVER}}{{item.courseCover}}" width="300rpx" height="200rpx" fit="cover"/>
+      <view class="title">{{ item.courseTitle }}</view>
+      <view class="info">
+        <view>
+          <van-icon name="clock-o"/>
+          购买：{{item.boughtText}}
+        </view>
+        <view>
+          <van-icon name="gold-coin-o"/>
+          价格：{{item.coursePrice}} 元
+        </view>
+      </view>
+    </van-grid-item>
+  </van-grid>
+
+  <view class="loading-tip" wx:if="{{loading}}">加载中…</view>
+  <view class="loading-tip" wx:elif="{{courses.length > 0 && pageInfo.pageNum >= pageInfo.totalPage}}">没有更多了</view>
+</scroll-view>

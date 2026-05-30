@@ -39,7 +39,7 @@
         <van-card wx:for="{{seckill.seckillDetails}}" wx:key="id" title="{{item.courseTitle}}" price="{{item.skPrice}}" origin-price="{{item.coursePrice}}" thumb="{{MINIO}}{{item.courseCover}}" thumb-mode="scaleToFill" tag="秒杀" desc="描述信息">
           <view slot="footer">
             <view class="sk-btn sk-btn-0" wx:if="{{seckill.status === 0}}">未开始</view>
-            <view class="sk-btn sk-btn-1" wx:if="{{seckill.status === 1}}">秒杀中</view>
+            <view class="sk-btn sk-btn-1" wx:if="{{seckill.status === 1}}" bind:tap="doSeckill" data-seckill-id="{{seckill.id}}" data-course-id="{{item.fkCourseId}}" data-price="{{item.coursePrice}}" data-sk-price="{{item.skPrice}}">立即秒杀</view>
             <view class="sk-btn sk-btn-2" wx:if="{{seckill.status === 2}}">已结束</view>
           </view>
         </van-card>
@@ -57,3 +57,23 @@
 <view class="baseline">
   <van-divider contentPosition="center" dashed>底线</van-divider>
 </view>
+
+<van-dialog class="pay-dialog" title="支付订单" show="{{ payDialogShow }}" show-confirm-button="{{false}}" use-slot width="400px">
+  <van-divider dashed/>
+  <view class="countdown-time">
+    <van-count-down class="pay-countdown" wx:if="{{countDownShow}}" time="{{ time }}" bind:change="countDown" bind:finish="onCountDownFinish" use-slot>
+      <view class="title">【请在15分钟内完成付款】</view>
+      <text class="item">{{ timeData.hours }}</text>
+      <text class="delimiter">时 </text>
+      <text class="item">{{ timeData.minutes }}</text>
+      <text class="delimiter">分 </text>
+      <text class="item">{{ timeData.seconds }}</text>
+      <text class="delimiter">秒 </text>
+    </van-count-down>
+  </view>
+  <van-divider dashed/>
+  <view class="pay-dialog-label">支付宝扫码</view>
+  <van-image class="qrcode-image" src="{{qrCodeImage}}" width="300" height="200"/>
+  <van-divider dashed/>
+  <van-button class="cancel-btn" bind:tap="cancelPay" block type="info">取消支付</van-button>
+</van-dialog>

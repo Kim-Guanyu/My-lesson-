@@ -1,6 +1,7 @@
 const api = require('../../utils/api.js');
 const constant = require('../../utils/const.js');
 const util = require('../../utils/util.js');
+const pay = require('../../utils/pay.js');
 
 Page({
   data: {
@@ -14,7 +15,14 @@ Page({
     articles: null,
     seckills: null,
     activeSeckillIdx: 0,
-    MINIO: constant.MINIO_COURSE_COVER
+    MINIO: constant.MINIO_COURSE_COVER,
+    payDialogShow: false,
+    time: 15 * 60 * 1000,
+    timeData: {},
+    countDownShow: false,
+    qrCodeImage: '',
+    sn: '',
+    killing: false
   },
 
   toLogin() {
@@ -85,6 +93,56 @@ Page({
     this.setData({activeSeckillIdx: idx});
   },
 
+  doSeckill(ev) {
+    const that = this;
+    if (!util.isLogin()) {
+      util.error('请先登录');
+      return;
+    }
+    if (that.data.killing) return;
+
+    const dataset = ev.currentTarget.dataset;
+    const params = {
+      fkSeckillId: dataset.seckillId,
+      fkUserId: wx.getStorageSync('user').id,
+      fkCourseId: dataset.courseId,
+      price: Number(dataset.price),
+      skPrice: Number(dataset.skPrice)
+    };
+
+    that.setData({killing: true});
+    api.post('seckill', '/kill', params).then(sn => {
+      that.setData({killing: false});
+      util.success('秒杀成功');
+      pay.openPayDialog(that, sn, {
+        onSuccess() {
+          wx.navigateTo({url: '/pages/user/order/order'});
+        }
+      });
+    }).catch(err => {
+      that.setData({killing: false});
+      console.error(err);
+    });
+  },
+
+  cancelPay() {
+    pay.cancelPay(this, {
+      onCancel() {
+        util.page('/pages/user/order/order');
+      }
+    });
+  },
+
+  countDown(ev) {
+    if (this.data.countDownShow) {
+      this.setData({timeData: ev.detail});
+    }
+  },
+
+  onCountDownFinish() {
+    pay.onCountDownFinish(this);
+  },
+
   onLoad() {
     this.setData({isLogin: !wx.getStorageSync('token')});
     this.topNotice1();
@@ -98,5 +156,10 @@ Page({
 
   onShow() {
     this.setData({isLogin: !wx.getStorageSync('token')});
+    this.todaySeckill();
+  },
+
+  onUnload() {
+    pay.onUnload(this);
   }
 });

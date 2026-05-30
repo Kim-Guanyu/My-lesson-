@@ -1,2 +1,145 @@
 @import "../../../app.scss";
-.stub { padding: 40rpx; color: #eaeaea; }
+
+.login-tip {
+  padding-top: 120rpx;
+  text-align: center;
+
+  .login-btn {
+    width: 300rpx;
+    margin-top: 40rpx;
+  }
+}
+
+.order-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.order-list {
+  flex: 1;
+  padding: 20rpx;
+  box-sizing: border-box;
+}
+
+.order-card {
+  background: $bg-gray;
+  border: 1rpx solid $black;
+  border-radius: 15rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  color: $yellow;
+}
+
+.order-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  gap: 16rpx;
+}
+
+.order-head-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  flex: 1;
+  min-width: 0;
+}
+
+.order-sn {
+  font-size: 22rpx;
+  color: $white;
+  word-break: break-all;
+}
+
+.order-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  font-size: 26rpx;
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed $subBlack;
+}
+
+.amount-row {
+  display: flex;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 16rpx;
+  margin-top: 8rpx;
+}
+
+.pay-amount {
+  color: $orange;
+  font-size: 32rpx;
+  font-weight: bold;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 12rpx 0;
+}
+
+.detail-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  min-width: 0;
+}
+
+.detail-title {
+  font-size: 28rpx;
+  color: $yellow;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.detail-price {
+  font-size: 24rpx;
+  color: $white;
+}
+
+.order-foot {
+  text-align: right;
+  margin-top: 20rpx;
+}
+
+.loading-tip {
+  text-align: center;
+  padding: 30rpx;
+  color: $white;
+  font-size: 26rpx;
+}
+
+.pay-dialog {
+  .countdown-time {
+    text-align: center;
+  }
+
+  .pay-countdown .title {
+    margin-bottom: 20rpx;
+  }
+
+  .item {
+    display: inline-block;
+    width: 60rpx;
+    margin-right: 10rpx;
+    color: $white;
+    font-weight: bold;
+    text-align: center;
+    background-color: $black;
+    border-radius: 5rpx;
+  }
+
+  .pay-dialog-label {
+    color: $orange;
+    text-align: center;
+    margin: 40rpx 0;
+  }
+}

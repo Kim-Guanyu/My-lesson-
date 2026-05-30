@@ -1,3 +1,12 @@
 {
-  "navigationBarTitleText": "功能开发中"
+  "navigationBarTitleText": "我的课程",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "van-empty": "@vant/weapp/empty/index",
+    "van-button": "@vant/weapp/button/index",
+    "van-grid": "@vant/weapp/grid/index",
+    "van-grid-item": "@vant/weapp/grid-item/index",
+    "van-image": "@vant/weapp/image/index",
+    "van-icon": "@vant/weapp/icon/index"
+  }
 }

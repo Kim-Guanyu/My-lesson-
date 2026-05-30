@@ -1,5 +1,6 @@
 package com.mdkj.service;
 
+import com.mdkj.dto.MyCoursePageDTO;
 import com.mdkj.dto.OrderDetailExcelDTO;
 import com.mdkj.dto.OrderDetailInsertDTO;
 import com.mdkj.dto.OrderDetailPageDTO;
@@ -20,6 +21,7 @@ public interface OrderDetailService extends IService<OrderDetail> {
     boolean insert(OrderDetailInsertDTO dto);
     OrderDetail select(Long id);
     PageVO<OrderDetail> page(OrderDetailPageDTO dto);
+    PageVO<OrderDetail> myCourses(MyCoursePageDTO dto);
     boolean update(OrderDetailUpdateDTO dto);
     boolean delete(Long id);
     boolean deleteBatch(List<Long> ids);

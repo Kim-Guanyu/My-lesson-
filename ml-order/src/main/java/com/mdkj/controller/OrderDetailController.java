@@ -1,5 +1,6 @@
 package com.mdkj.controller;
 
+import com.mdkj.dto.MyCoursePageDTO;
 import com.mdkj.dto.OrderDetailInsertDTO;
 import com.mdkj.dto.OrderDetailPageDTO;
 import com.mdkj.dto.OrderDetailUpdateDTO;
@@ -96,6 +97,12 @@ public class OrderDetailController {
     @GetMapping("page")
     public PageVO<OrderDetail> page(@Validated OrderDetailPageDTO dto) {
         return orderDetailService.page(dto);
+    }
+
+    @Operation(summary = "查询 - 我的课程", description = "查询用户已付款订单中的课程")
+    @GetMapping("myCourses")
+    public PageVO<OrderDetail> myCourses(@Validated MyCoursePageDTO dto) {
+        return orderDetailService.myCourses(dto);
     }
 
     @Operation(summary = "修改 - 单条修改", description = "按主键修改一条订单明细记录")

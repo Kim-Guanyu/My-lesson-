@@ -1,7 +1,9 @@
 package com.mdkj.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
+import com.mdkj.dto.MyCoursePageDTO;
 import com.mdkj.dto.OrderDetailExcelDTO;
 import com.mdkj.dto.OrderDetailInsertDTO;
 import com.mdkj.dto.OrderDetailPageDTO;
@@ -20,6 +22,7 @@ import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.mdkj.entity.OrderDetail;
 import com.mdkj.mapper.OrderDetailMapper;
+import com.mdkj.mapper.OrderMapper;
 import com.mdkj.service.OrderDetailService;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.mdkj.entity.table.OrderDetailTableDef.ORDER_DETAIL;
+import static com.mdkj.entity.table.OrderTableDef.ORDER;
 
 /**
  * 订单明细表 服务层实现。
@@ -40,6 +44,8 @@ import static com.mdkj.entity.table.OrderDetailTableDef.ORDER_DETAIL;
 public class OrderDetailServiceImpl extends ServiceImpl<OrderDetailMapper, OrderDetail>  implements OrderDetailService{
     @Resource
     private CourseFeign courseFeign;
+    @Resource
+    private OrderMapper orderMapper;
 
     @Override
     public boolean insert(OrderDetailInsertDTO dto) {
@@ -101,6 +107,35 @@ public class OrderDetailServiceImpl extends ServiceImpl<OrderDetailMapper, Order
         // DB分页并转为VO
         Page<OrderDetail> result = queryChain.withRelations().page(new Page<>(dto.getPageNum(), dto.getPageSize()));
         PageVO<OrderDetail> pageVO = new PageVO<>();
+        BeanUtil.copyProperties(result, pageVO);
+        pageVO.setPageNum(result.getPageNumber());
+        return pageVO;
+    }
+
+    @Override
+    public PageVO<OrderDetail> myCourses(MyCoursePageDTO dto) {
+        Long fkUserId = dto.getFkUserId();
+        List<Long> paidOrderIds = QueryChain.of(orderMapper)
+                .select(ORDER.ID)
+                .where(ORDER.FK_USER_ID.eq(fkUserId))
+                .and(ORDER.STATUS.eq(ML.Order.PAID))
+                .listAs(Long.class);
+
+        PageVO<OrderDetail> pageVO = new PageVO<>();
+        if (CollUtil.isEmpty(paidOrderIds)) {
+            pageVO.setPageNum((long) dto.getPageNum());
+            pageVO.setPageSize(dto.getPageSize());
+            pageVO.setTotalRow(0L);
+            pageVO.setTotalPage(0);
+            pageVO.setRecords(new ArrayList<>());
+            return pageVO;
+        }
+
+        Page<OrderDetail> result = QueryChain.of(mapper)
+                .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
+                .orderBy(ORDER_DETAIL.CREATED.desc())
+                .page(new Page<>(dto.getPageNum(), dto.getPageSize()));
+
         BeanUtil.copyProperties(result, pageVO);
         pageVO.setPageNum(result.getPageNumber());
         return pageVO;

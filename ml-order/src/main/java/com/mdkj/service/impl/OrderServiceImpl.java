@@ -5,9 +5,14 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import com.alipay.easysdk.factory.Factory;
+import com.alipay.easysdk.payment.common.models.AlipayTradeQueryResponse;
 import com.mdkj.dto.OrderInsertDTO;
+import com.mdkj.dto.OrderMessage;
 import com.mdkj.dto.OrderPageDTO;
+import com.mdkj.dto.OrderTimeoutMessage;
 import com.mdkj.dto.OrderUpdateDTO;
 import com.mdkj.dto.PrePayDTO;
 import com.mdkj.entity.*;
@@ -29,7 +34,11 @@ import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.mdkj.mapper.OrderMapper;
 import com.mdkj.service.OrderService;
+import com.mdkj.util.AlipayUtil;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +61,7 @@ import static com.mybatisflex.core.query.QueryMethods.*;
  * @since v1.0.0
  */
 @Service
+@Slf4j
 public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implements OrderService{
 
     @Resource
@@ -64,6 +74,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
     private CourseFeign courseFeign;
     @Resource
     private CartService cartService;
+    @Resource
+    private RocketMQTemplate rocketmqTemplate;
+
+    /** RocketMQ 延迟级别14 ≈ 10分钟后触发订单超时检查 */
+    private static final int ORDER_TIMEOUT_DELAY_LEVEL = 14;
 
     @Override
     public boolean insert(OrderInsertDTO dto) {
@@ -125,7 +140,35 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
             queryChain.where(ORDER.USERNAME.like(username));
         }
 
+        // fkUserId条件
+        Long fkUserId = dto.getFkUserId();
+        if (ObjectUtil.isNotNull(fkUserId)) {
+            queryChain.where(ORDER.FK_USER_ID.eq(fkUserId));
+        }
+
         // DB分页并转为VO
+        Page<Order> result = queryChain.withRelations().page(new Page<>(dto.getPageNum(), dto.getPageSize()));
+        PageVO<Order> pageVO = new PageVO<>();
+        BeanUtil.copyProperties(result, pageVO);
+        pageVO.setPageNum(result.getPageNumber());
+        return pageVO;
+    }
+
+    @Override
+    public PageVO<Order> myPage(OrderPageDTO dto) {
+        Long fkUserId = dto.getFkUserId();
+        if (ObjectUtil.isNull(fkUserId)) {
+            throw new ServiceException(ResultCode.SERVER_ERROR, "用户ID不能为空");
+        }
+        QueryChain<Order> queryChain = QueryChain.of(mapper)
+                .where(ORDER.FK_USER_ID.eq(fkUserId))
+                .orderBy(ORDER.CREATED.desc());
+
+        Integer status = dto.getStatus();
+        if (ObjectUtil.isNotNull(status)) {
+            queryChain.where(ORDER.STATUS.eq(status));
+        }
+
         Page<Order> result = queryChain.withRelations().page(new Page<>(dto.getPageNum(), dto.getPageSize()));
         PageVO<Order> pageVO = new PageVO<>();
         BeanUtil.copyProperties(result, pageVO);
@@ -292,21 +335,17 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         Long userId = dto.getFkUserId();
         List<Long> courseIds = dto.getCourseIds();
 
-        // 获取该用户的全部订单ID集合
-        // select id from order where fk_user_id = ?
-        List<Long> orderIds = QueryChain.of(mapper)
+        // 仅检查已付款订单中的重复购买
+        List<Long> paidOrderIds = QueryChain.of(mapper)
                 .select(ORDER.ID)
                 .where(ORDER.FK_USER_ID.eq(userId))
+                .and(ORDER.STATUS.eq(ML.Order.PAID))
                 .listAs(Long.class);
-        // 如果该用户存在订单记录，需要判断是否存在重复购买课程现象
-        if (CollUtil.isNotEmpty(orderIds)) {
-            // 获取该用户的全部已购买的课程ID集合
-            // select fk_course_id from order_detail where fk_order_id in ?
+        if (CollUtil.isNotEmpty(paidOrderIds)) {
             List<Long> purchasedCourseIds = QueryChain.of(orderDetailMapper)
                     .select(ORDER_DETAIL.FK_COURSE_ID)
-                    .where(ORDER_DETAIL.FK_ORDER_ID.in(orderIds))
+                    .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
                     .listAs(Long.class);
-            // 判断是否存在重复购买课程现象：有交集说明重复购买
             purchasedCourseIds.retainAll(courseIds);
             if (CollUtil.isNotEmpty(purchasedCourseIds)) {
                 throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "订单明细重复");
@@ -319,8 +358,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         order.setSn(sn);
         order.setPayType(ML.Order.NO_PAY);
         order.setStatus(ML.Order.UNPAID);
-        order.setPayAmount(0.0);
-        order.setInfo("暂无描述。");
+        order.setPayAmount(dto.getPayAmount());
+        order.setInfo("购物车下单");
         Result<User> userResult = userFeign.select(userId);
         if (ObjectUtil.isNull(userResult)) {
             throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "用户微服务远程调用失败，请联系管理员。");
@@ -375,6 +414,143 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         return sn;
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public String createSeckillOrder(OrderMessage orderMessage) {
+        Long fkUserId = orderMessage.getFkUserId();
+        Long fkCourseId = orderMessage.getFkCourseId();
+        Double skPrice = orderMessage.getSkPrice();
+        Double price = orderMessage.getPrice();
+        String sn = StrUtil.isNotBlank(orderMessage.getSn())
+                ? orderMessage.getSn()
+                : RandomUtil.randomNumbers(19);
+
+        // 幂等：同一 sn 已建单则直接返回
+        if (QueryChain.of(mapper).where(ORDER.SN.eq(sn)).exists()) {
+            return sn;
+        }
+
+        // 检查是否已购买该课程
+        List<Long> paidOrderIds = QueryChain.of(mapper)
+                .select(ORDER.ID)
+                .where(ORDER.FK_USER_ID.eq(fkUserId))
+                .and(ORDER.STATUS.eq(ML.Order.PAID))
+                .listAs(Long.class);
+        if (CollUtil.isNotEmpty(paidOrderIds)) {
+            List<Long> purchasedCourseIds = QueryChain.of(orderDetailMapper)
+                    .select(ORDER_DETAIL.FK_COURSE_ID)
+                    .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
+                    .and(ORDER_DETAIL.FK_COURSE_ID.eq(fkCourseId))
+                    .listAs(Long.class);
+            if (CollUtil.isNotEmpty(purchasedCourseIds)) {
+                throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "您已购买该课程");
+            }
+        }
+
+        Order order = new Order();
+        order.setSn(sn);
+        order.setTotalAmount(price);
+        order.setPayAmount(skPrice);
+        order.setPayType(ML.Order.NO_PAY);
+        order.setStatus(ML.Order.UNPAID);
+        order.setFkUserId(fkUserId);
+        Result<User> userResult = userFeign.select(fkUserId);
+        if (ObjectUtil.isNull(userResult)) {
+            throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "用户微服务远程调用失败，请联系管理员。");
+        }
+        User user = userResult.getData();
+        if (ObjectUtil.isNull(user)) {
+            throw new ServiceException(ResultCode.USER_NOT_FOUND, fkUserId + "号用户数据不存在");
+        }
+        order.setUsername(user.getUsername());
+        order.setInfo("通过秒杀活动下单");
+        order.setCreated(LocalDateTime.now());
+        order.setUpdated(LocalDateTime.now());
+
+        if (mapper.insert(order) <= 0) {
+            throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库添加订单失败");
+        }
+
+        Long orderId = order.getId();
+        OrderDetail orderDetail = new OrderDetail();
+        orderDetail.setFkCourseId(fkCourseId);
+        orderDetail.setFkOrderId(orderId);
+        Result<Course> courseResult = courseFeign.select(fkCourseId);
+        if (ObjectUtil.isNull(courseResult)) {
+            throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "课程微服务远程调用失败，请联系管理员。");
+        }
+        Course course = courseResult.getData();
+        if (ObjectUtil.isNull(course)) {
+            throw new ServiceException(ResultCode.COURSE_NOT_FOUND, fkCourseId + "号课程数据不存在");
+        }
+        orderDetail.setCourseTitle(course.getTitle());
+        orderDetail.setCourseCover(course.getCover());
+        orderDetail.setCoursePrice(course.getPrice());
+        orderDetail.setCreated(LocalDateTime.now());
+        orderDetail.setUpdated(LocalDateTime.now());
+        if (orderDetailMapper.insert(orderDetail) <= 0) {
+            throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库添加订单明细失败");
+        }
+
+        // 延迟消息：超时未支付则取消订单并回滚库存
+        OrderTimeoutMessage timeoutMessage = new OrderTimeoutMessage(sn, fkCourseId);
+        rocketmqTemplate.syncSend(
+                "ml-topic:order-timeout-tag",
+                MessageBuilder.withPayload(timeoutMessage).build(),
+                3000,
+                ORDER_TIMEOUT_DELAY_LEVEL);
+        log.info("秒杀订单 {} 创建成功，已发送超时检查消息", sn);
+        return sn;
+    }
+
+    @Override
+    public String findUnpaidSn(Long fkUserId, Long fkCourseId) {
+        List<Long> unpaidOrderIds = QueryChain.of(mapper)
+                .select(ORDER.ID)
+                .where(ORDER.FK_USER_ID.eq(fkUserId))
+                .and(ORDER.STATUS.eq(ML.Order.UNPAID))
+                .listAs(Long.class);
+        if (CollUtil.isEmpty(unpaidOrderIds)) {
+            return null;
+        }
+        OrderDetail detail = QueryChain.of(orderDetailMapper)
+                .where(ORDER_DETAIL.FK_ORDER_ID.in(unpaidOrderIds))
+                .and(ORDER_DETAIL.FK_COURSE_ID.eq(fkCourseId))
+                .one();
+        if (ObjectUtil.isNull(detail)) {
+            return null;
+        }
+        Order order = mapper.selectOneById(detail.getFkOrderId());
+        return ObjectUtil.isNull(order) ? null : order.getSn();
+    }
+
+    @Override
+    public void handleSeckillOrderTimeout(String sn, Long fkCourseId) {
+        Order order = QueryChain.of(mapper).where(ORDER.SN.eq(sn)).one();
+        if (ObjectUtil.isNull(order) || !ML.Order.UNPAID.equals(order.getStatus())) {
+            return;
+        }
+        UpdateChain.of(mapper)
+                .set(ORDER.STATUS, ML.Order.CANCEL)
+                .set(ORDER.UPDATED, LocalDateTime.now())
+                .where(ORDER.SN.eq(sn))
+                .update();
+        redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, 1);
+        log.info("秒杀订单 {} 超时未支付，已取消并回滚 {} 号课程库存", sn, fkCourseId);
+    }
+
+    @Override
+    public Order getBySn(String sn) {
+        Order order = QueryChain.of(mapper)
+                .where(ORDER.SN.eq(sn))
+                .withRelations()
+                .one();
+        if (ObjectUtil.isNull(order)) {
+            throw new ServiceException(ResultCode.ORDER_NOT_FOUND, "订单" + sn + "不存在");
+        }
+        return order;
+    }
+
     @Override
     public boolean updateStatusBySn(String sn, Integer status) {
         // 根据订单编号更新订单状态
@@ -389,13 +565,64 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
     }
 
     @Override
-    public boolean checkStatusBySn(String sn) {
-        // 根据订单编号查询订单记录（仅查询支付成功的订单）
+    public boolean paySuccessBySn(String sn, Double payAmount) {
         Order order = QueryChain.of(mapper)
                 .where(ORDER.SN.eq(sn))
-                .and(ORDER.STATUS.eq(ML.Order.PAID))
                 .one();
-        return ObjectUtil.isNotNull(order);
+        if (ObjectUtil.isNull(order)) {
+            throw new ServiceException(ResultCode.ORDER_NOT_FOUND, "订单" + sn + "不存在");
+        }
+        if (ML.Order.PAID.equals(order.getStatus())) {
+            return true;
+        }
+        if (!UpdateChain.of(mapper)
+                .set(ORDER.STATUS, ML.Order.PAID)
+                .set(ORDER.PAY_TYPE, ML.Order.ALI_PAY)
+                .set(ORDER.PAY_AMOUNT, payAmount)
+                .set(ORDER.UPDATED, LocalDateTime.now())
+                .where(ORDER.SN.eq(sn))
+                .update()) {
+            throw new ServiceException(ResultCode.MYSQL_ERROR, "更新订单支付状态失败");
+        }
+        return true;
+    }
+
+    @Override
+    public boolean checkStatusBySn(String sn) {
+        Order order = QueryChain.of(mapper)
+                .where(ORDER.SN.eq(sn))
+                .one();
+        if (ObjectUtil.isNull(order)) {
+            return false;
+        }
+        if (ML.Order.PAID.equals(order.getStatus())) {
+            return true;
+        }
+        return syncPayStatusFromAlipay(sn);
+    }
+
+    /**
+     * 主动查询支付宝交易状态并同步本地订单
+     */
+    private boolean syncPayStatusFromAlipay(String sn) {
+        try {
+            Factory.setOptions(AlipayUtil.getConfig());
+            AlipayTradeQueryResponse queryResponse = Factory.Payment.Common().query(sn);
+            JSONObject response = JSONUtil.parseObj(queryResponse.getHttpBody())
+                    .getJSONObject("alipay_trade_query_response");
+            if (response == null || !"10000".equals(response.getStr("code"))) {
+                return false;
+            }
+            String tradeStatus = response.getStr("trade_status");
+            if ("TRADE_SUCCESS".equals(tradeStatus) || "TRADE_FINISHED".equals(tradeStatus)) {
+                Double payAmount = response.getDouble("total_amount");
+                paySuccessBySn(sn, payAmount);
+                return true;
+            }
+        } catch (Exception e) {
+            log.warn("主动查询支付宝订单状态失败，sn={}", sn, e);
+        }
+        return false;
     }
 
 
