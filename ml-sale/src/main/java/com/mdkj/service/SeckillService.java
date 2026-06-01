@@ -23,12 +23,16 @@ public interface SeckillService extends IService<Seckill> {
     boolean deleteBatch(List<Long> ids);
     List<Seckill> today();
     /**
-     * 秒杀指定商品
+     * 秒杀指定商品（用户身份从 Token 解析，价格从活动明细读取）
      *
-     * @param dto 秒杀实体类
+     * @param token 登录 Token
+     * @param dto   秒杀参数（活动 ID、课程 ID）
      * @return 订单编号
      */
-    String kill(KillDTO dto);
+    String kill(String token, KillDTO dto);
 
-
+    /**
+     * 压测准备：开启活动并重置 Redis 库存
+     */
+    boolean prepareLoadTest(Long seckillId, Integer stock);
 }

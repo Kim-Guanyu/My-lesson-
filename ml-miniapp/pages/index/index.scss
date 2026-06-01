@@ -107,14 +107,22 @@
     width: 220rpx;
   }
 
+  .seckill-item {
+    margin-bottom: 20rpx;
+  }
+
+  .sk-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 16rpx 16rpx;
+  }
+
   .sk-btn {
     width: 170rpx;
     height: 70rpx;
     line-height: 70rpx;
     text-align: center;
     font-size: large;
-    margin-top: -70px;
-    float: right;
     border-top-left-radius: 50%;
     border-bottom-right-radius: 50%;
   }

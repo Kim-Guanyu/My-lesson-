@@ -4,6 +4,7 @@ import com.mdkj.dto.OrderMessage;
 import com.mdkj.service.OrderService;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
+import com.mdkj.util.SeckillRedisKeys;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.ConsumeMode;
@@ -36,8 +37,18 @@ public class OrderMessageListener implements RocketMQListener<OrderMessage> {
             orderService.createSeckillOrder(orderMessage);
         } catch (Exception e) {
             log.error("MQ 创建秒杀订单失败，回滚库存", e);
-            if (orderMessage.getFkCourseId() != null) {
-                redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + orderMessage.getFkCourseId(), 1);
+            Long fkSeckillId = orderMessage.getFkSeckillId();
+            Long fkCourseId = orderMessage.getFkCourseId();
+            Long fkUserId = orderMessage.getFkUserId();
+            if (fkCourseId != null) {
+                if (fkSeckillId != null) {
+                    redis.incr(SeckillRedisKeys.stock(fkSeckillId, fkCourseId), 1);
+                    if (fkUserId != null) {
+                        redis.del(SeckillRedisKeys.userOrder(fkSeckillId, fkCourseId, fkUserId));
+                    }
+                } else {
+                    redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, 1);
+                }
             }
             throw e;
         }

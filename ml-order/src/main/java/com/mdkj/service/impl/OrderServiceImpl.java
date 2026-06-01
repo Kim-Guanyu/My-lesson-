@@ -23,6 +23,8 @@ import com.mdkj.mapper.OrderDetailMapper;
 import com.mdkj.service.CartService;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
+import com.mdkj.util.SeckillRedisKeys;
+import com.mdkj.util.MyRedis;
 import com.mdkj.util.Result;
 import com.mdkj.util.ResultCode;
 import com.mdkj.vo.PageVO;
@@ -430,6 +432,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
             return sn;
         }
 
+        String existingUnpaidSn = findUnpaidSn(fkUserId, fkCourseId);
+        if (StrUtil.isNotBlank(existingUnpaidSn) && !existingUnpaidSn.equals(sn)) {
+            throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "您已有该课程的待付款订单");
+        }
+
         // 检查是否已购买该课程
         List<Long> paidOrderIds = QueryChain.of(mapper)
                 .select(ORDER.ID)
@@ -493,7 +500,11 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         }
 
         // 延迟消息：超时未支付则取消订单并回滚库存
-        OrderTimeoutMessage timeoutMessage = new OrderTimeoutMessage(sn, fkCourseId);
+        OrderTimeoutMessage timeoutMessage = new OrderTimeoutMessage();
+        timeoutMessage.setSn(sn);
+        timeoutMessage.setFkSeckillId(orderMessage.getFkSeckillId());
+        timeoutMessage.setFkCourseId(fkCourseId);
+        timeoutMessage.setFkUserId(fkUserId);
         rocketmqTemplate.syncSend(
                 "ml-topic:order-timeout-tag",
                 MessageBuilder.withPayload(timeoutMessage).build(),
@@ -525,7 +536,7 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
     }
 
     @Override
-    public void handleSeckillOrderTimeout(String sn, Long fkCourseId) {
+    public void handleSeckillOrderTimeout(String sn, Long fkSeckillId, Long fkCourseId, Long fkUserId) {
         Order order = QueryChain.of(mapper).where(ORDER.SN.eq(sn)).one();
         if (ObjectUtil.isNull(order) || !ML.Order.UNPAID.equals(order.getStatus())) {
             return;
@@ -535,8 +546,26 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
                 .set(ORDER.UPDATED, LocalDateTime.now())
                 .where(ORDER.SN.eq(sn))
                 .update();
-        redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, 1);
-        log.info("秒杀订单 {} 超时未支付，已取消并回滚 {} 号课程库存", sn, fkCourseId);
+        Long userId = fkUserId != null ? fkUserId : order.getFkUserId();
+        rollbackSeckillStock(fkSeckillId, fkCourseId, userId);
+        log.info("秒杀订单 {} 超时未支付，已取消并回滚库存", sn);
+    }
+
+    /**
+     * 回滚秒杀库存并清理用户占位（兼容旧版无 seckillId 的消息）
+     */
+    private void rollbackSeckillStock(Long fkSeckillId, Long fkCourseId, Long fkUserId) {
+        if (fkCourseId == null) {
+            return;
+        }
+        if (fkSeckillId != null) {
+            redis.incr(SeckillRedisKeys.stock(fkSeckillId, fkCourseId), 1);
+            if (fkUserId != null) {
+                redis.del(SeckillRedisKeys.userOrder(fkSeckillId, fkCourseId, fkUserId));
+            }
+        } else {
+            redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, 1);
+        }
     }
 
     @Override

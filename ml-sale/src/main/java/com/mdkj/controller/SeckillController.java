@@ -126,8 +126,16 @@ public class SeckillController {
 
     @Operation(summary = "开始秒杀", description = "秒杀购买指定的课程，返回订单编号")
     @PostMapping("kill")
-    public Result<String> kill(@Validated @RequestBody KillDTO dto) {
-        return new Result<>(seckillService.kill(dto));
+    public Result<String> kill(@RequestHeader("token") String token,
+                               @Validated @RequestBody KillDTO dto) {
+        return new Result<>(seckillService.kill(token, dto));
+    }
+
+    @Operation(summary = "压测 - 准备秒杀活动", description = "开启活动并重置 Redis 库存，仅供压测使用")
+    @PostMapping("prepareLoadTest")
+    public boolean prepareLoadTest(@RequestParam("seckillId") Long seckillId,
+                                   @RequestParam(value = "stock", required = false) Integer stock) {
+        return seckillService.prepareLoadTest(seckillId, stock);
     }
 
 

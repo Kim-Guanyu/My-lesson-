@@ -95,23 +95,30 @@ Page({
 
   doSeckill(ev) {
     const that = this;
-    if (!util.isLogin()) {
-      util.error('请先登录');
-      return;
-    }
+    if (!util.isLogin()) return;
     if (that.data.killing) return;
 
     const dataset = ev.currentTarget.dataset;
+    const user = wx.getStorageSync('user');
+    if (!user || !user.id) {
+      util.error('请先登录');
+      setTimeout(() => util.page('/pages/index/login-by-account/login-by-account', false), 500);
+      return;
+    }
+    if (!dataset.seckillId || !dataset.courseId) {
+      util.tip('秒杀参数异常');
+      return;
+    }
+
     const params = {
-      fkSeckillId: dataset.seckillId,
-      fkUserId: wx.getStorageSync('user').id,
-      fkCourseId: dataset.courseId,
-      price: Number(dataset.price),
-      skPrice: Number(dataset.skPrice)
+      fkSeckillId: Number(dataset.seckillId),
+      fkCourseId: Number(dataset.courseId)
     };
 
     that.setData({killing: true});
+    wx.showLoading({title: '秒杀中...', mask: true});
     api.post('seckill', '/kill', params).then(sn => {
+      wx.hideLoading();
       that.setData({killing: false});
       util.success('秒杀成功');
       pay.openPayDialog(that, sn, {
@@ -120,6 +127,7 @@ Page({
         }
       });
     }).catch(err => {
+      wx.hideLoading();
       that.setData({killing: false});
       console.error(err);
     });

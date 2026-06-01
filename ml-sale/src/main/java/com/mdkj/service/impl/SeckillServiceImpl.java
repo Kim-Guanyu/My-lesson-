@@ -1,6 +1,7 @@
 package com.mdkj.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
@@ -9,7 +10,6 @@ import com.mdkj.exception.ServiceException;
 import com.mdkj.mapper.SeckillDetailMapper;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
-import com.mdkj.util.Result;
 import com.mdkj.util.ResultCode;
 import com.mdkj.vo.PageVO;
 import com.mybatisflex.core.paginate.Page;
@@ -17,20 +17,20 @@ import com.mybatisflex.core.query.QueryChain;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.mdkj.entity.Seckill;
-import com.mdkj.feign.OrderFeign;
+import com.mdkj.entity.SeckillDetail;
+import com.mdkj.component.SeckillStockService;
+import com.mdkj.component.TokenUserResolver;
+import com.mdkj.entity.User;
 import com.mdkj.mapper.SeckillMapper;
 import com.mdkj.service.SeckillService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 
 import static com.mdkj.entity.table.SeckillDetailTableDef.SECKILL_DETAIL;
@@ -54,13 +54,13 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
     @Resource
     private MyRedis redis;
     @Resource
-    private RedissonClient redissonClient;
+    private SeckillStockService seckillStockService;
+    @Resource
+    private TokenUserResolver tokenUserResolver;
     @Resource
     private SeckillMapper seckillMapper;
     @Resource
     private RocketMQTemplate rocketmqTemplate;
-    @Resource
-    private OrderFeign orderFeign;
 
     @Override
     public boolean insert(SeckillInsertDTO dto) {
@@ -226,64 +226,105 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
 
 
     @Override
-    public String kill(KillDTO dto) {
+    public String kill(String token, KillDTO dto) {
+        User user = tokenUserResolver.requireUser(token);
+        Long fkUserId = user.getId();
         Long fkSeckillId = dto.getFkSeckillId();
         Long fkCourseId = dto.getFkCourseId();
 
-        // 检查秒杀活动是否存在
+        if (!seckillStockService.tryAcquireUserRate(fkUserId, ML.Seckill.USER_KILL_RATE_PER_SECOND)) {
+            throw new ServiceException(ResultCode.SECKILL_TOO_FAST, ResultCode.SECKILL_TOO_FAST.getMESSAGE());
+        }
+
         Seckill seckill = seckillMapper.selectOneById(fkSeckillId);
         if (ObjectUtil.isNull(seckill)) {
             throw new ServiceException(ResultCode.SECKILL_NOT_FOUND, fkSeckillId + "号秒杀活动不存在");
         }
 
-        // 根据活动状态决定处理方案
         Integer status = seckill.getStatus();
         if (status.equals(ML.Seckill.NOT_START)) {
             throw new ServiceException(ResultCode.SECKILL_NOT_START, fkSeckillId + "号秒杀活动未开始");
-        } else if (status.equals(ML.Seckill.STARTED)) {
-            final String KEY = ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId;
-
-            // 若已有待付款订单，直接返回订单号继续支付
-            Result<String> unpaidResult = orderFeign.findUnpaidSn(dto.getFkUserId(), fkCourseId);
-            if (ObjectUtil.isNotNull(unpaidResult) && StrUtil.isNotBlank(unpaidResult.getData())) {
-                log.info("用户 {} 已有 {} 号课程待付款订单 {}", dto.getFkUserId(), fkCourseId, unpaidResult.getData());
-                return unpaidResult.getData();
-            }
-
-            RLock lock = redissonClient.getLock("skLock");
-            lock.lock(30, TimeUnit.SECONDS);
-
-            try {
-                String stockStr = redis.get(KEY);
-                if (stockStr == null || Integer.parseInt(stockStr) <= 0) {
-                    throw new ServiceException(ResultCode.SERVER_ERROR, "库存不足，秒杀失败");
-                }
-                redis.incr(KEY, -1);
-
-                String sn = RandomUtil.randomNumbers(19);
-                OrderMessage orderMessage = new OrderMessage();
-                orderMessage.setSn(sn);
-                orderMessage.setFkUserId(dto.getFkUserId());
-                orderMessage.setFkCourseId(fkCourseId);
-                orderMessage.setSkPrice(dto.getSkPrice());
-                orderMessage.setPrice(dto.getPrice());
-
-                try {
-                    rocketmqTemplate.convertAndSend("ml-topic:ml-tag", orderMessage);
-                    log.info("秒杀 MQ 消息发送成功，订单号 {}", sn);
-                } catch (Exception e) {
-                    redis.incr(KEY, 1);
-                    throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀下单失败，请稍后重试");
-                }
-                return sn;
-            } finally {
-                lock.unlock();
-            }
-        } else if (status.equals(ML.Seckill.ENDED)) {
+        }
+        if (status.equals(ML.Seckill.ENDED)) {
             throw new ServiceException(ResultCode.SECKILL_END, fkSeckillId + "号秒杀活动已结束");
-        } else {
+        }
+        if (!status.equals(ML.Seckill.STARTED)) {
             throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀活动状态异常");
         }
+
+        SeckillDetail detail = QueryChain.of(seckillDetailMapper)
+                .where(SECKILL_DETAIL.FK_SECKILL_ID.eq(fkSeckillId))
+                .and(SECKILL_DETAIL.FK_COURSE_ID.eq(fkCourseId))
+                .one();
+        if (ObjectUtil.isNull(detail)) {
+            throw new ServiceException(ResultCode.SECKILL_DETAIL_NOT_FOUND,
+                    fkSeckillId + "号活动下不存在课程" + fkCourseId);
+        }
+
+        String existingSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
+        if (StrUtil.isNotBlank(existingSn)) {
+            log.info("用户 {} 重复秒杀请求，返回已有订单号 {}", fkUserId, existingSn);
+            return existingSn;
+        }
+
+        String sn = RandomUtil.randomNumbers(19);
+        long luaResult = seckillStockService.tryKill(fkSeckillId, fkCourseId, fkUserId, sn);
+
+        if (luaResult == 0) {
+            String reservedSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
+            if (StrUtil.isNotBlank(reservedSn)) {
+                return reservedSn;
+            }
+            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀状态异常，请稍后重试");
+        }
+        if (luaResult < 0) {
+            throw new ServiceException(ResultCode.SECKILL_STOCK_OUT, ResultCode.SECKILL_STOCK_OUT.getMESSAGE());
+        }
+
+        OrderMessage orderMessage = new OrderMessage();
+        orderMessage.setSn(sn);
+        orderMessage.setFkSeckillId(fkSeckillId);
+        orderMessage.setFkUserId(fkUserId);
+        orderMessage.setFkCourseId(fkCourseId);
+        orderMessage.setSkPrice(detail.getSkPrice());
+        orderMessage.setPrice(detail.getCoursePrice());
+
+        try {
+            rocketmqTemplate.convertAndSend("ml-topic:ml-tag", orderMessage);
+            log.info("秒杀 MQ 发送成功，用户 {} 课程 {} 订单 {}", fkUserId, fkCourseId, sn);
+        } catch (Exception e) {
+            log.error("秒杀 MQ 发送失败，回滚库存", e);
+            seckillStockService.rollbackKill(fkSeckillId, fkCourseId, fkUserId);
+            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀下单失败，请稍后重试");
+        }
+        return sn;
+    }
+
+    @Override
+    public boolean prepareLoadTest(Long seckillId, Integer stock) {
+        Seckill seckill = seckillMapper.selectOneWithRelationsById(seckillId);
+        if (ObjectUtil.isNull(seckill)) {
+            throw new ServiceException(ResultCode.SECKILL_NOT_FOUND, seckillId + "号秒杀活动不存在");
+        }
+        List<SeckillDetail> details = seckill.getSeckillDetails();
+        if (CollUtil.isEmpty(details)) {
+            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀活动无商品明细");
+        }
+
+        UpdateChain.of(seckillMapper)
+                .set(SECKILL.STATUS, ML.Seckill.STARTED)
+                .set(SECKILL.UPDATED, LocalDateTime.now())
+                .where(SECKILL.ID.eq(seckillId))
+                .update();
+
+        for (SeckillDetail detail : details) {
+            int skCount = stock != null ? stock : detail.getSkCount();
+            seckillStockService.initStock(seckillId, detail.getFkCourseId(), skCount);
+            log.info("压测准备：活动 {} 课程 {} 库存重置为 {}", seckillId, detail.getFkCourseId(), skCount);
+        }
+        redis.deleteByPrefix(com.mdkj.util.SeckillRedisKeys.userOrderPrefix(seckillId));
+        log.info("压测准备：秒杀活动 {} 已开启，用户占位已清理", seckillId);
+        return true;
     }
 
 

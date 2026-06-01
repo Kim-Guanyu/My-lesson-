@@ -30,7 +30,7 @@ public interface OrderService extends IService<Order> {
     String prePay(PrePayDTO dto);
     String createSeckillOrder(OrderMessage orderMessage);
     String findUnpaidSn(Long fkUserId, Long fkCourseId);
-    void handleSeckillOrderTimeout(String sn, Long fkCourseId);
+    void handleSeckillOrderTimeout(String sn, Long fkSeckillId, Long fkCourseId, Long fkUserId);
     Order getBySn(String sn);
     boolean updateStatusBySn(String sn, Integer status);
     boolean paySuccessBySn(String sn, Double payAmount);

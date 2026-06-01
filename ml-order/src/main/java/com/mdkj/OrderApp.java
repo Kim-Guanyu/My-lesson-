@@ -15,7 +15,8 @@ import org.springframework.util.StringUtils;
 @SpringBootApplication
 @EnableFeignClients(basePackages = "com.mdkj.feign")
 public class OrderApp {  
-    public static void main(String[] args) {  
+    public static void main(String[] args) {
+
         // 启动前兜底，防止配置中心加载异常时 rocketmq.name-server 为空导致 connect to null failed
         String nameServer = System.getProperty("rocketmq.name-server");
         if (!StringUtils.hasText(nameServer)) {

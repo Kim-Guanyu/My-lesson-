@@ -1,0 +1,12 @@
+{
+  "name": "seckill-loadtest",
+  "version": "1.0.0",
+  "description": "- 网关 `ml-gateway`（24101）、`ml-sale`、`ml-order`、Redis、RocketMQ 已启动\r - 数据库中已有秒杀活动及明细（`ml_sms.seckill` / `seckill_detail`）\r - 压测用户账号可登录（需在 Nacos 白名单外，携带 token）",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

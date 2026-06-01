@@ -27,6 +27,10 @@ public class OrderTimeoutListener implements RocketMQListener<OrderTimeoutMessag
     @Override
     public void onMessage(OrderTimeoutMessage message) {
         log.info("MQ 收到订单超时消息：订单号 {} 课程 {}", message.getSn(), message.getFkCourseId());
-        orderService.handleSeckillOrderTimeout(message.getSn(), message.getFkCourseId());
+        orderService.handleSeckillOrderTimeout(
+                message.getSn(),
+                message.getFkSeckillId(),
+                message.getFkCourseId(),
+                message.getFkUserId());
     }
 }

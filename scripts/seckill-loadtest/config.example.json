@@ -1,0 +1,14 @@
+{
+  "gateway": "http://localhost:24101",
+  "username": "your_username",
+  "password": "your_password",
+  "seckillId": 1,
+  "courseId": 1,
+  "price": 99.0,
+  "skPrice": 9.9,
+  "stock": 100,
+  "concurrency": 50,
+  "totalRequests": 200,
+  "userIdStart": 1,
+  "prepareBeforeTest": true
+}

@@ -36,13 +36,15 @@
   <van-tabs wx:if="{{seckills && seckills.length > 0}}" active="{{ activeSeckillIdx }}" bind:change="changeSeckill">
     <van-tab wx:for="{{seckills}}" wx:for-item="seckill" wx:key="id" title="{{seckill.title}}">
       <view wx:if="{{seckill.seckillDetails && seckill.seckillDetails.length > 0}}">
-        <van-card wx:for="{{seckill.seckillDetails}}" wx:key="id" title="{{item.courseTitle}}" price="{{item.skPrice}}" origin-price="{{item.coursePrice}}" thumb="{{MINIO}}{{item.courseCover}}" thumb-mode="scaleToFill" tag="秒杀" desc="描述信息">
-          <view slot="footer">
-            <view class="sk-btn sk-btn-0" wx:if="{{seckill.status === 0}}">未开始</view>
-            <view class="sk-btn sk-btn-1" wx:if="{{seckill.status === 1}}" bind:tap="doSeckill" data-seckill-id="{{seckill.id}}" data-course-id="{{item.fkCourseId}}" data-price="{{item.coursePrice}}" data-sk-price="{{item.skPrice}}">立即秒杀</view>
-            <view class="sk-btn sk-btn-2" wx:if="{{seckill.status === 2}}">已结束</view>
+        <view class="seckill-item" wx:for="{{seckill.seckillDetails}}" wx:key="id">
+          <van-card title="{{item.courseTitle}}" price="{{item.skPrice}}" origin-price="{{item.coursePrice}}" thumb="{{MINIO}}{{item.courseCover}}" thumb-mode="scaleToFill" tag="秒杀" desc="描述信息"/>
+          <view class="sk-footer">
+            <view wx:if="{{seckill.status == 0}}" class="sk-btn sk-btn-0">未开始</view>
+            <view wx:elif="{{seckill.status == 1}}" class="sk-btn sk-btn-1" catch:tap="doSeckill"
+              data-seckill-id="{{seckill.id}}" data-course-id="{{item.fkCourseId}}" data-price="{{item.coursePrice}}" data-sk-price="{{item.skPrice}}">立即秒杀</view>
+            <view wx:else class="sk-btn sk-btn-2">已结束</view>
           </view>
-        </van-card>
+        </view>
       </view>
       <view wx:else>
         <van-empty image="error" description="暂无秒杀商品"/>

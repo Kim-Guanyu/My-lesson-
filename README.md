@@ -266,6 +266,7 @@ VITE_API_PROXY=http://localhost:24101
 ## 部署说明
 
 - RocketMQ 容器化部署见：[document/rocketmq-容器部署.md](document/rocketmq-容器部署.md)
+- **秒杀高并发方案**（Redis Lua、用户防重、限流）：[docs/seckill-concurrency.md](docs/seckill-concurrency.md)
 - 生产环境建议：Gateway + 各微服务独立部署，MinIO / ES / Redis 集群化，Nginx 反向代理与 HTTPS
 
 ---
@@ -277,7 +278,7 @@ VITE_API_PROXY=http://localhost:24101
 1. **微服务拆分思路**：按用户、内容、交易、营销、弹幕五域划分，网关统一鉴权
 2. **短剧付费闭环**：内容建模 → 购物车 → 订单 → 支付
 3. **弹幕方案**：WebSocket 实时 + ES 持久化 + 小程序自定义弹幕层按时间点渲染
-4. **营销系统**：秒杀 + Redis + RocketMQ 异步下单
+4. **营销系统**：秒杀 + Redis Lua 原子扣库存 + RocketMQ 异步下单（详见 [docs/seckill-concurrency.md](docs/seckill-concurrency.md)）
 5. **对象存储**：MinIO 管理封面、剧集视频等资源
 
 ---

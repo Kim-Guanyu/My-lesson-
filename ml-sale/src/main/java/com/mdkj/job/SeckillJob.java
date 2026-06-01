@@ -70,7 +70,11 @@ public class SeckillJob {
 	                Long fkCourseId = seckillDetail.getFkCourseId();
 	                Integer skCount = seckillDetail.getSkCount();
 	                // 缓存每个商品的库存（12小时过期，07点开始缓存，18点活动结束）
-	                myRedis.setEx(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, skCount.toString(), 12, TimeUnit.HOURS);
+	                myRedis.setEx(
+	                        com.mdkj.util.SeckillRedisKeys.stock(seckill.getId(), fkCourseId),
+	                        skCount.toString(),
+	                        ML.Seckill.STOCK_CACHE_HOURS,
+	                        TimeUnit.HOURS);
 	                // 将商品信息加入List中
 	                courseIds.add(fkCourseId);
 	            });

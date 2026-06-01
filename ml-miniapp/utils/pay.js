@@ -2,12 +2,24 @@ const api = require('./api.js');
 const constant = require('./const.js');
 const util = require('./util.js');
 
-function arrayBufferToBase64(buffer) {
-  if (wx.arrayBufferToBase64) return wx.arrayBufferToBase64(buffer);
-  let binary = '';
+function isJpegBuffer(buffer) {
+  if (!buffer || !buffer.byteLength) return false;
   const bytes = new Uint8Array(buffer);
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return wx.base64Encode ? wx.base64Encode(binary) : binary;
+  return bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF;
+}
+
+function saveBufferAsTempImage(buffer) {
+  return new Promise((resolve, reject) => {
+    const fs = wx.getFileSystemManager();
+    const filePath = `${wx.env.USER_DATA_PATH}/pay_qr_${Date.now()}.jpg`;
+    fs.writeFile({
+      filePath,
+      data: buffer,
+      encoding: 'binary',
+      success: () => resolve(filePath),
+      fail: reject
+    });
+  });
 }
 
 function isPaidResult(ok) {
@@ -56,8 +68,9 @@ function fetchQrCode(sn, retries = 15, interval = 1000) {
         header: {token: wx.getStorageSync('token')},
         responseType: 'arraybuffer',
         success(res) {
-          if (res.statusCode === 200) {
-            resolve('data:image/jpeg;base64,' + arrayBufferToBase64(res.data));
+          // 秒杀订单由 MQ 异步创建，需等到返回真实 JPEG 而非 JSON 错误
+          if (res.statusCode === 200 && isJpegBuffer(res.data)) {
+            saveBufferAsTempImage(res.data).then(resolve).catch(reject);
             return;
           }
           if (left <= 0) {
@@ -99,7 +112,9 @@ function startPayPolling(page, sn, options) {
  */
 function openPayDialog(page, sn, options) {
   page._payHandled = false;
+  wx.showLoading({title: '生成二维码...', mask: true});
   fetchQrCode(sn).then(qrCodeImage => {
+    wx.hideLoading();
     page.setData({
       sn,
       qrCodeImage,
@@ -109,7 +124,10 @@ function openPayDialog(page, sn, options) {
     });
     if (page._payTimer) clearInterval(page._payTimer);
     page._payTimer = startPayPolling(page, sn, options);
-  }).catch(() => util.error('获取二维码失败'));
+  }).catch(() => {
+    wx.hideLoading();
+    util.error('获取二维码失败');
+  });
 }
 
 function cancelPay(page, options) {

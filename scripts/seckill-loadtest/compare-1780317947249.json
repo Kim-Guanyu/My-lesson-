@@ -1,0 +1,62 @@
+{
+  "baseline": {
+    "name": "1000并发",
+    "seckillId": 1,
+    "courseId": 1,
+    "stock": 100,
+    "totalRequests": 1000,
+    "concurrency": 1000,
+    "burstWaveSize": 250,
+    "totalTimeMs": 21035.707200000004,
+    "qps": "47.54",
+    "success": 100,
+    "fail": 900,
+    "successRate": "10.00%",
+    "latencyMin": "-",
+    "latencyAvg": "-",
+    "latencyP50": "-",
+    "latencyP95": "-",
+    "latencyP99": "-",
+    "latencyMax": "-",
+    "redisStock": "0",
+    "dbOrderCount": 101,
+    "apiSuccess": 100,
+    "uniqueSn": 100,
+    "oversell": "是",
+    "errors": {
+      "库存不足，秒杀失败": 900
+    }
+  },
+  "target": {
+    "name": "10000并发",
+    "seckillId": 2,
+    "courseId": 3,
+    "stock": 100,
+    "totalRequests": 10000,
+    "concurrency": 10000,
+    "burstWaveSize": 500,
+    "totalTimeMs": 131552.14909999998,
+    "qps": "76.02",
+    "success": 100,
+    "fail": 9900,
+    "successRate": "1.00%",
+    "latencyMin": "1754.57",
+    "latencyAvg": "4731.82",
+    "latencyP50": "4509.59",
+    "latencyP95": "7159.94",
+    "latencyP99": "7317.73",
+    "latencyMax": "7411.70",
+    "redisStock": "0",
+    "dbOrderCount": 100,
+    "apiSuccess": 100,
+    "uniqueSn": 100,
+    "oversell": "否",
+    "errors": {
+      "库存不足，秒杀失败": 9900
+    }
+  },
+  "files": [
+    "report-1780316849832.json",
+    "report-1780317907007.json"
+  ]
+}

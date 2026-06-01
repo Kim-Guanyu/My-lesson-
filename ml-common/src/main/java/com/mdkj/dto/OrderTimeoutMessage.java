@@ -14,5 +14,7 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class OrderTimeoutMessage implements Serializable {
     private String sn;
+    private Long fkSeckillId;
     private Long fkCourseId;
+    private Long fkUserId;
 }

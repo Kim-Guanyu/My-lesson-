@@ -1,0 +1,30 @@
+{
+  "gateway": "http://localhost:24101",
+  "password": "LoadTest123",
+  "seckillId": 2,
+  "courseId": 3,
+  "price": 11300.0,
+  "skPrice": 11.9,
+  "stock": 100,
+  "totalRequests": 10000,
+  "concurrency": 10000,
+  "burst": true,
+  "burstWaveSize": 500,
+  "userPrefix": "loadtest",
+  "userCount": 10000,
+  "loginConcurrency": 120,
+  "prepareBeforeTest": true,
+  "verifyAfterTest": true,
+  "waitOrdersMs": 30000,
+  "mysql": {
+    "host": "192.168.211.132",
+    "port": 3306,
+    "user": "root",
+    "password": "123456"
+  },
+  "redis": {
+    "host": "192.168.211.132",
+    "port": 6379,
+    "password": "123456"
+  }
+}

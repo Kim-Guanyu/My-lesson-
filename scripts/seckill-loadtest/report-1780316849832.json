@@ -1,0 +1,251 @@
+{
+  "config": {
+    "gateway": "http://localhost:24101",
+    "password": "***",
+    "seckillId": 1,
+    "courseId": 1,
+    "price": 11100,
+    "skPrice": 9.9,
+    "stock": 100,
+    "totalRequests": 1000,
+    "concurrency": 1000,
+    "burst": true,
+    "burstWaveSize": 250,
+    "userPrefix": "loadtest",
+    "userCount": 1000,
+    "loginConcurrency": 80,
+    "prepareBeforeTest": true,
+    "verifyAfterTest": true,
+    "waitOrdersMs": 20000,
+    "mysql": {
+      "host": "192.168.211.132",
+      "port": 3306,
+      "user": "root",
+      "password": "123456"
+    },
+    "redis": {
+      "host": "192.168.211.132",
+      "port": 6379,
+      "password": "123456"
+    }
+  },
+  "total": 1000,
+  "totalTimeMs": 21035.707200000004,
+  "summary": {
+    "success": 100,
+    "fail": 900,
+    "latencies": 100,
+    "errors": {
+      "库存不足，秒杀失败": 900
+    }
+  },
+  "verify": {
+    "apiSuccess": 100,
+    "uniqueSn": 100,
+    "redisStock": "0",
+    "dbOrderCount": 101,
+    "oversell": true
+  },
+  "sampleErrors": [
+    {
+      "ok": false,
+      "elapsed": 10523.9172,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 6,
+      "username": "loadtest004",
+      "index": 3
+    },
+    {
+      "ok": false,
+      "elapsed": 10298.078899999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 8,
+      "username": "loadtest006",
+      "index": 5
+    },
+    {
+      "ok": false,
+      "elapsed": 9675.008899999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 12,
+      "username": "loadtest010",
+      "index": 9
+    },
+    {
+      "ok": false,
+      "elapsed": 9493.513599999998,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 14,
+      "username": "loadtest012",
+      "index": 11
+    },
+    {
+      "ok": false,
+      "elapsed": 9609.1844,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 28,
+      "username": "loadtest026",
+      "index": 25
+    },
+    {
+      "ok": false,
+      "elapsed": 9487.232899999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 57,
+      "username": "loadtest055",
+      "index": 54
+    },
+    {
+      "ok": false,
+      "elapsed": 10876.559500000001,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 58,
+      "username": "loadtest056",
+      "index": 55
+    },
+    {
+      "ok": false,
+      "elapsed": 10203.1792,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 59,
+      "username": "loadtest057",
+      "index": 56
+    },
+    {
+      "ok": false,
+      "elapsed": 9464.123599999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 61,
+      "username": "loadtest059",
+      "index": 58
+    },
+    {
+      "ok": false,
+      "elapsed": 10626.0713,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 66,
+      "username": "loadtest064",
+      "index": 63
+    },
+    {
+      "ok": false,
+      "elapsed": 9430.5423,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 81,
+      "username": "loadtest079",
+      "index": 78
+    },
+    {
+      "ok": false,
+      "elapsed": 9628.1451,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 87,
+      "username": "loadtest085",
+      "index": 84
+    },
+    {
+      "ok": false,
+      "elapsed": 9531.707699999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 91,
+      "username": "loadtest089",
+      "index": 88
+    },
+    {
+      "ok": false,
+      "elapsed": 9633.631800000001,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 97,
+      "username": "loadtest095",
+      "index": 94
+    },
+    {
+      "ok": false,
+      "elapsed": 9654.9137,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 98,
+      "username": "loadtest096",
+      "index": 95
+    },
+    {
+      "ok": false,
+      "elapsed": 9612.575799999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 100,
+      "username": "loadtest098",
+      "index": 97
+    },
+    {
+      "ok": false,
+      "elapsed": 9845.6508,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 103,
+      "username": "loadtest101",
+      "index": 100
+    },
+    {
+      "ok": false,
+      "elapsed": 9435.034599999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 105,
+      "username": "loadtest103",
+      "index": 102
+    },
+    {
+      "ok": false,
+      "elapsed": 9563.659700000002,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 106,
+      "username": "loadtest104",
+      "index": 103
+    },
+    {
+      "ok": false,
+      "elapsed": 9491.890099999999,
+      "code": 2000,
+      "message": "库存不足，秒杀失败",
+      "sn": null,
+      "userId": 107,
+      "username": "loadtest105",
+      "index": 104
+    }
+  ]
+}

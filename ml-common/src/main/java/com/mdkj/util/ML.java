@@ -25,8 +25,15 @@ public class ML {
         String TOP_BANNER_KEY_PREFIX = "top_banner:";
         /** 秒杀活动商品详情缓存前缀 */
         String SECKILL_COURSE_INFO_PREFIX = "seckill:course_info:";
-        /** 秒杀活动商品库存缓存前缀 */
+        /** @deprecated 旧版库存 key，仅兼容历史数据；新逻辑请用 {@link SeckillRedisKeys#stock} */
+        @Deprecated
         String SECKILL_COURSE_COUNT_PREFIX = "seckill:course_count:";
+        /** 秒杀库存：seckill:stock:{seckillId}:{courseId} */
+        String SECKILL_STOCK_PREFIX = "seckill:stock:";
+        /** 秒杀用户占位（订单号）：seckill:user:{seckillId}:{courseId}:{userId} */
+        String SECKILL_USER_ORDER_PREFIX = "seckill:user:";
+        /** 秒杀接口用户限流 */
+        String SECKILL_RATE_PREFIX = "seckill:rate:";
     }
 
     public interface MinIO {
@@ -118,6 +125,12 @@ public class ML {
     public interface Seckill {
         /** 秒杀活动状态: 0未开始，1已开始，2已结束 */
         Integer NOT_START = 0, STARTED = 1, ENDED = 2;
+        /** Redis 库存缓存时长（小时） */
+        int STOCK_CACHE_HOURS = 12;
+        /** 用户占位 key TTL（秒），需大于订单超时时间 */
+        int USER_ORDER_TTL_SECONDS = 960;
+        /** 单用户每秒最多 kill 次数 */
+        int USER_KILL_RATE_PER_SECOND = 10;
 
         /** 秒杀活动状态处理方法：数字代码 -> 字符串 */
         static String statusFormat(Integer seckillCode) {

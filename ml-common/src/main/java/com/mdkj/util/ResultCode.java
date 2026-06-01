@@ -56,7 +56,9 @@ public enum ResultCode {
 	OPEN_FEIGN_ERROR(6000, "远程调用失败"),
 	// 友好提示
 	SECKILL_NOT_START(7000, "活动未开始"),
-	SECKILL_END(7001, "活动已结束");
+	SECKILL_END(7001, "活动已结束"),
+	SECKILL_STOCK_OUT(7002, "库存不足，秒杀失败"),
+	SECKILL_TOO_FAST(7003, "操作过于频繁，请稍后再试");
 
     private final int CODE;
     private final String MESSAGE;
