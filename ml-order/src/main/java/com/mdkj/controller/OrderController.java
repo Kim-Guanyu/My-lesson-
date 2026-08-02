@@ -7,7 +7,10 @@ import cn.hutool.json.JSONUtil;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.payment.facetoface.models.AlipayTradePrecreateResponse;
 import com.mdkj.dto.*;
+import com.mdkj.entity.Order;
 import com.mdkj.exception.ServiceException;
+import com.mdkj.component.SeckillPrepayStore;
+import com.mdkj.service.OrderService;
 import com.mdkj.util.AlipayUtil;
 import com.mdkj.util.ML;
 import com.mdkj.util.Result;
@@ -23,8 +26,6 @@ import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.mdkj.entity.Order;
-import com.mdkj.service.OrderService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -48,6 +49,8 @@ public class OrderController {
 
     @Autowired
     private OrderService orderService;
+    @Resource
+    private SeckillPrepayStore prepayStore;
 
     /**
      * 添加订单表。
@@ -173,14 +176,11 @@ public class OrderController {
     }
 
     @SneakyThrows
-    @Operation(summary = "查询 - 预支付二维码", description = "获取预支付二维码")
+    @Operation(summary = "查询 - 预支付二维码", description = "获取预支付二维码；秒杀场景可不依赖订单已落库，凭 Redis 预支付快照拉码")
     @PostMapping("/getQrCode")
     public void getQrCode(HttpServletResponse resp, @RequestBody QrCodeDTO qrCodeDTO) {
-        Order order = orderService.getBySn(qrCodeDTO.getSn());
-        if (!ML.Order.UNPAID.equals(order.getStatus())) {
-            throw new ServiceException(ResultCode.SERVER_ERROR, "订单状态不可支付");
-        }
-        Double payAmount = order.getPayAmount();
+        String sn = qrCodeDTO.getSn();
+        Double payAmount = resolvePayAmountForQr(sn);
         if (payAmount == null || payAmount <= 0) {
             throw new ServiceException(ResultCode.SERVER_ERROR, "订单支付金额异常");
         }
@@ -189,7 +189,7 @@ public class OrderController {
         // 发起预支付请求
         AlipayTradePrecreateResponse alipayTradePrecreateResponse = Factory.Payment
                 .FaceToFace()
-                .preCreate("ML订单支付", qrCodeDTO.getSn(), String.format("%.2f", payAmount));
+                .preCreate("ML订单支付", sn, String.format("%.2f", payAmount));
         // 解析预支付响应
         JSONObject response = JSONUtil.parseObj(alipayTradePrecreateResponse.getHttpBody()).getJSONObject("alipay_trade_precreate_response");
         // 设置响应头：响应类型为图片，不缓存（addHeader 项是为了兼容老版本浏览器）
@@ -204,6 +204,28 @@ public class OrderController {
             ImageIO.write(bufferedImage, "jpg", outputStream);
             outputStream.flush();
         }
+    }
+
+    /**
+     * 解析拉码金额：优先已落库未支付订单；秒杀场景订单未创建时回退 Redis 预支付快照。
+     */
+    private Double resolvePayAmountForQr(String sn) {
+        try {
+            Order order = orderService.getBySn(sn);
+            if (!ML.Order.UNPAID.equals(order.getStatus())) {
+                throw new ServiceException(ResultCode.SERVER_ERROR, "订单状态不可支付");
+            }
+            return order.getPayAmount();
+        } catch (ServiceException e) {
+            if (e.getResultCode() != ResultCode.ORDER_NOT_FOUND) {
+                throw e;
+            }
+        }
+        Double prepayAmount = prepayStore.getPrepayAmount(sn);
+        if (prepayAmount == null) {
+            throw new ServiceException(ResultCode.ORDER_NOT_FOUND, "订单" + sn + "不存在或预支付已过期");
+        }
+        return prepayAmount;
     }
 
     @Operation(summary = "回调 - 预支付回调", description = "支付成功后，支付宝自动回调的接口")

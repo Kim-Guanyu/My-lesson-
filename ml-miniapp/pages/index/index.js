@@ -22,7 +22,9 @@ Page({
     countDownShow: false,
     qrCodeImage: '',
     sn: '',
-    killing: false
+    killing: false,
+    // 本地节流：距离下一次允许发起秒杀请求的时间戳，冷却期内直接拦截，不请求后端
+    killCooldownUntil: 0
   },
 
   toLogin() {
@@ -93,10 +95,24 @@ Page({
     this.setData({activeSeckillIdx: idx});
   },
 
+  // 标记指定秒杀商品为"已抢光/已结束"，之后本页面不再为它发起请求
+  markSeckillDetailDone(seckillId, courseId, label) {
+    const that = this;
+    const seckills = that.data.seckills || [];
+    const si = seckills.findIndex(s => s.id === seckillId);
+    if (si === -1) return;
+    const details = seckills[si].seckillDetails || [];
+    const di = details.findIndex(d => d.fkCourseId === courseId);
+    if (di === -1) return;
+    that.setData({
+      [`seckills[${si}].seckillDetails[${di}].soldOut`]: true,
+      [`seckills[${si}].seckillDetails[${di}].soldOutLabel`]: label
+    });
+  },
+
   doSeckill(ev) {
     const that = this;
     if (!util.isLogin()) return;
-    if (that.data.killing) return;
 
     const dataset = ev.currentTarget.dataset;
     const user = wx.getStorageSync('user');
@@ -109,28 +125,60 @@ Page({
       util.tip('秒杀参数异常');
       return;
     }
+    const seckillId = Number(dataset.seckillId);
+    const courseId = Number(dataset.courseId);
 
-    const params = {
-      fkSeckillId: Number(dataset.seckillId),
-      fkCourseId: Number(dataset.courseId)
-    };
+    // 该商品在本地已确认售罄/结束，直接拦截，不再打到后端
+    if (dataset.soldOut) {
+      util.tip('手慢了，该商品已被抢光');
+      return;
+    }
+    // 正在请求中，忽略重复点击
+    if (that.data.killing) return;
+    // 冷却期内直接拦截，避免用户连续快速点击造成大量无效请求
+    const now = Date.now();
+    if (now < that.data.killCooldownUntil) {
+      util.tip('手速太快啦，请稍后再试');
+      return;
+    }
 
-    that.setData({killing: true});
-    wx.showLoading({title: '秒杀中...', mask: true});
-    api.post('seckill', '/kill', params).then(sn => {
-      wx.hideLoading();
-      that.setData({killing: false});
-      util.success('秒杀成功');
-      pay.openPayDialog(that, sn, {
-        onSuccess() {
-          wx.navigateTo({url: '/pages/user/order/order'});
-        }
-      });
-    }).catch(err => {
-      wx.hideLoading();
-      that.setData({killing: false});
-      console.error(err);
+    const params = {fkSeckillId: seckillId, fkCourseId: courseId};
+
+    that.setData({
+      killing: true,
+      killCooldownUntil: now + constant.SECKILL_THROTTLE.COOLDOWN_MS
     });
+    wx.showLoading({title: '排队中...', mask: true});
+
+    // 随机错峰延迟：把同一时刻大量客户端的点击打散到一个小窗口内再真正发出请求，
+    // 削弱瞬时并发峰值，而不是让所有请求在同一毫秒集中冲击后端
+    const jitter = Math.floor(Math.random() * constant.SECKILL_THROTTLE.JITTER_MAX_MS);
+    setTimeout(() => {
+      wx.showLoading({title: '秒杀中...', mask: true});
+      api.post('seckill', '/kill', params).then(sn => {
+        wx.hideLoading();
+        that.setData({killing: false});
+        util.success('秒杀成功');
+        pay.openPayDialog(that, sn, {
+          onSuccess() {
+            wx.navigateTo({url: '/pages/user/order/order'});
+          }
+        });
+      }).catch(err => {
+        wx.hideLoading();
+        const update = {killing: false};
+        if (err && err.code === constant.SECKILL_CODE.STOCK_OUT) {
+          that.markSeckillDetailDone(seckillId, courseId, '已抢光');
+        } else if (err && err.code === constant.SECKILL_CODE.END) {
+          that.markSeckillDetailDone(seckillId, courseId, '已结束');
+        } else if (err && err.code === constant.SECKILL_CODE.TOO_FAST) {
+          // 后端也判定过快，进一步拉长本地冷却时间，减少无效重试
+          update.killCooldownUntil = Date.now() + constant.SECKILL_THROTTLE.TOO_FAST_PENALTY_MS;
+        }
+        that.setData(update);
+        console.error(err);
+      });
+    }, jitter);
   },
 
   cancelPay() {

@@ -56,9 +56,9 @@ function handlePaySuccess(page, options) {
 }
 
 /**
- * 获取支付宝扫码支付二维码（支持异步建单重试）
+ * 获取支付宝扫码支付二维码（支持瞬时失败重试；秒杀拉码不再等待 MQ 建单）
  */
-function fetchQrCode(sn, retries = 15, interval = 1000) {
+function fetchQrCode(sn, retries = 8, interval = 300) {
   return new Promise((resolve, reject) => {
     const attempt = (left) => {
       wx.request({
@@ -68,7 +68,6 @@ function fetchQrCode(sn, retries = 15, interval = 1000) {
         header: {token: wx.getStorageSync('token')},
         responseType: 'arraybuffer',
         success(res) {
-          // 秒杀订单由 MQ 异步创建，需等到返回真实 JPEG 而非 JSON 错误
           if (res.statusCode === 200 && isJpegBuffer(res.data)) {
             saveBufferAsTempImage(res.data).then(resolve).catch(reject);
             return;

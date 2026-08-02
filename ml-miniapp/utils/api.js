@@ -52,7 +52,9 @@ function sendRequest(config) {
           } else {
             util.error(data.message || '请求失败');
             console.error(data.coderMessage);
-            reject(new Error(data.message || '请求失败'));
+            const bizError = new Error(data.message || '请求失败');
+            bizError.code = data.code;
+            reject(bizError);
           }
           return;
         }

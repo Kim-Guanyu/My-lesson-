@@ -1,32 +1,39 @@
-@import "../../app.scss";
+@import "../../styles/theme.scss";
 
 .login-tips {
-  color: $gray;
+  color: $text-secondary;
   margin-top: 20rpx;
 
   .link {
-    color: $orange;
+    color: $primary;
+    font-weight: 500;
   }
 }
 
 .project-title {
-  letter-spacing: 5rpx;
+  letter-spacing: 2rpx;
   line-height: 80rpx;
-  margin: 40rpx 60rpx;
+  margin: 32rpx 40rpx;
 
   .title {
-    font-size: 45rpx;
+    font-size: 44rpx;
+    font-weight: 700;
+    color: $text-primary;
   }
 
   .sub-title {
-    font-size: 40rpx;
-    color: $orange;
+    font-size: 26rpx;
+    color: $text-secondary;
+    letter-spacing: 1rpx;
   }
 }
 
 .banner {
   height: 400rpx;
-  margin: 0 20rpx;
+  margin: 0 24rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx $shadow;
 
   swiper,
   image {
@@ -35,6 +42,8 @@
 
   .no-banner-tip {
     height: 400rpx;
+    background: $surface;
+    border-radius: 20rpx;
 
     .van-empty__image {
       height: 210px;
@@ -45,45 +54,64 @@
 
 .article {
   text-align: left;
+  margin: 0 24rpx;
 
   .van-cell {
-    background-color: $black;
-    color: $yellow;
-    font-weight: bold;
-    letter-spacing: 5rpx;
+    background-color: $surface !important;
+    color: $primary !important;
+    font-weight: 600;
+    border-radius: 16rpx;
+    box-shadow: 0 2rpx 12rpx $shadow;
   }
 
   .article-collapse {
-    margin: 20rpx;
+    margin: 16rpx 0;
   }
 
   .van-collapse-item__content {
-    color: $black;
-    font-size: 25rpx;
+    color: $text-secondary !important;
+    font-size: 26rpx;
+    background-color: $surface !important;
+  }
+
+  .van-collapse-item {
+    margin-bottom: 12rpx;
+    border-radius: 16rpx;
+    overflow: hidden;
+    box-shadow: 0 2rpx 12rpx $shadow;
   }
 }
 
 .seckill {
-  padding: 0 20rpx;
+  padding: 0 24rpx;
 
   .van-tab {
-    background: $bg-gray;
-    color: $white;
+    background: $surface;
+    color: $text-secondary;
   }
 
   .van-tab--active {
-    background: $black;
+    background: $primary-light;
 
     .van-ellipsis {
-      color: $yellow;
+      color: $primary;
+      font-weight: 600;
     }
   }
 
+  .van-tabs__nav {
+    background: $surface !important;
+    border-radius: 16rpx;
+    box-shadow: 0 2rpx 12rpx $shadow;
+  }
+
   .van-card {
-    color: $white;
-    background: $bg-gray;
-    border: 2rpx solid $black;
-    margin: 10rpx 0 0;
+    color: $text-primary;
+    background: $surface;
+    border: 1rpx solid $border;
+    border-radius: 16rpx;
+    margin: 16rpx 0 0;
+    box-shadow: 0 2rpx 12rpx $shadow;
   }
 
   .van-card__content {
@@ -93,18 +121,22 @@
 
   .van-card__title {
     padding-top: 20rpx;
-    font-size: large;
+    font-size: 30rpx;
     margin-bottom: 10rpx;
-    color: $yellow;
+    color: $text-primary;
+    font-weight: 600;
   }
 
   .van-card__price {
-    color: $orange;
+    color: $price;
+    font-weight: 700;
   }
 
   .van-card__thumb {
     margin-top: 20rpx;
     width: 220rpx;
+    border-radius: 12rpx;
+    overflow: hidden;
   }
 
   .seckill-item {
@@ -122,21 +154,26 @@
     height: 70rpx;
     line-height: 70rpx;
     text-align: center;
-    font-size: large;
-    border-top-left-radius: 50%;
-    border-bottom-right-radius: 50%;
+    font-size: 28rpx;
+    border-radius: 35rpx;
   }
 
   .sk-btn-0,
   .sk-btn-2 {
-    opacity: 0.6;
-    background-color: $subBlack;
-    color: $white;
+    opacity: 0.7;
+    background-color: $border;
+    color: $text-secondary;
   }
 
   .sk-btn-1 {
-    background-color: $yellow;
-    color: $orange;
+    background-color: $primary;
+    color: #ffffff;
+    font-weight: 600;
+  }
+
+  .sk-btn-loading {
+    opacity: 0.6;
+    pointer-events: none;
   }
 }
 
@@ -147,22 +184,24 @@
 
   .pay-countdown .title {
     margin-bottom: 20rpx;
+    color: $text-primary;
   }
 
   .item {
     display: inline-block;
     width: 60rpx;
     margin-right: 10rpx;
-    color: $white;
+    color: #ffffff;
     font-weight: bold;
     text-align: center;
-    background-color: $black;
-    border-radius: 5rpx;
+    background-color: $primary;
+    border-radius: 8rpx;
   }
 
   .pay-dialog-label {
-    color: $orange;
+    color: $text-primary;
     text-align: center;
     margin: 40rpx 0;
+    font-weight: 600;
   }
 }

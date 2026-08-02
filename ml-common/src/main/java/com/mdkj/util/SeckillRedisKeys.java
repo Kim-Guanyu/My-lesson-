@@ -13,6 +13,16 @@ public final class SeckillRedisKeys {
         return ML.Redis.SECKILL_STOCK_PREFIX + seckillId + ":" + courseId;
     }
 
+    /** 活动状态缓存：seckill:status:{seckillId}，避免 kill 热路径每次查库 */
+    public static String status(Long seckillId) {
+        return ML.Redis.SECKILL_STATUS_PREFIX + seckillId;
+    }
+
+    /** 商品明细缓存（hash：courseTitle/courseCover/coursePrice/skPrice）：seckill:detail:{seckillId}:{courseId} */
+    public static String detail(Long seckillId, Long courseId) {
+        return ML.Redis.SECKILL_DETAIL_PREFIX + seckillId + ":" + courseId;
+    }
+
     /** 用户占位（存订单号 sn）：seckill:user:{seckillId}:{courseId}:{userId} */
     public static String userOrder(Long seckillId, Long courseId, Long userId) {
         return ML.Redis.SECKILL_USER_ORDER_PREFIX + seckillId + ":" + courseId + ":" + userId;
@@ -26,5 +36,15 @@ public final class SeckillRedisKeys {
     /** 压测清理：seckill:user:{seckillId}: */
     public static String userOrderPrefix(Long seckillId) {
         return ML.Redis.SECKILL_USER_ORDER_PREFIX + seckillId + ":";
+    }
+
+    /** 预支付快照：seckill:prepay:{sn} */
+    public static String prepay(String sn) {
+        return ML.Redis.SECKILL_PREPAY_PREFIX + sn;
+    }
+
+    /** 已支付待落库：seckill:paid:{sn} */
+    public static String paid(String sn) {
+        return ML.Redis.SECKILL_PAID_PREFIX + sn;
     }
 }

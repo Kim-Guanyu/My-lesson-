@@ -1,5 +1,5 @@
 // 环境IP地址
-const HOST = 'localhost';
+const HOST = '192.168.211.132';
 const LINUX_HOST = '192.168.211.132';
 const GATEWAY_HOST = `http://${HOST}:24101`;
 const SOCKET_SERVER = `ws://${HOST}:24106`;
@@ -17,6 +17,24 @@ const UPLOAD_AVATAR_URL = GATEWAY_HOST + '/user-server/api/v1/user/uploadAvatar/
 // 常用请求状态码
 const STATUS = {
     SUCCESS: 1000
+}
+
+// 秒杀相关状态码（需与后端 ResultCode 保持一致）
+const SECKILL_CODE = {
+    NOT_START: 7000,
+    END: 7001,
+    STOCK_OUT: 7002,
+    TOO_FAST: 7003
+}
+
+// 秒杀前端节流参数：在请求真正发出前拦截一部分请求，降低后端瞬时并发
+const SECKILL_THROTTLE = {
+    // 同一用户两次秒杀请求之间的最小间隔（毫秒），期间直接在本地拦截，不发请求
+    COOLDOWN_MS: 1500,
+    // 命中"操作过于频繁"时，额外延长的冷却时间（毫秒）
+    TOO_FAST_PENALTY_MS: 3000,
+    // 请求发出前的随机错峰延迟上限（毫秒），把同一时刻的点击风暴打散到一个小窗口内发出
+    JITTER_MAX_MS: 400
 }
 
 // 常用表单规则
@@ -95,7 +113,7 @@ const ZODIAC_OPTIONS = [
 
 // 导出
 module.exports = {
-    GATEWAY_HOST, SOCKET_SERVER, STATUS, RULE,
+    GATEWAY_HOST, SOCKET_SERVER, STATUS, SECKILL_CODE, SECKILL_THROTTLE, RULE,
     USER_AVATAR_URL,
     MINIO_AVATAR, MINIO_BANNER, MINIO_COURSE_COVER, MINIO_COURSE_SUMMARY,
     MINIO_EPISODE_VIDEO, MINIO_EPISODE_VIDEO_COVER, MINIO_VIDEO, UPLOAD_AVATAR_URL,

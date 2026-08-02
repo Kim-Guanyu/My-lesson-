@@ -9,6 +9,8 @@ import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.alipay.easysdk.factory.Factory;
 import com.alipay.easysdk.payment.common.models.AlipayTradeQueryResponse;
+import com.mdkj.component.SeckillPrepayStore;
+import com.mdkj.component.SeckillStockCompensator;
 import com.mdkj.dto.OrderInsertDTO;
 import com.mdkj.dto.OrderMessage;
 import com.mdkj.dto.OrderPageDTO;
@@ -24,7 +26,6 @@ import com.mdkj.service.CartService;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
 import com.mdkj.util.SeckillRedisKeys;
-import com.mdkj.util.MyRedis;
 import com.mdkj.util.Result;
 import com.mdkj.util.ResultCode;
 import com.mdkj.vo.PageVO;
@@ -40,6 +41,7 @@ import com.mdkj.util.AlipayUtil;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -78,6 +80,10 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
     private CartService cartService;
     @Resource
     private RocketMQTemplate rocketmqTemplate;
+    @Resource
+    private SeckillStockCompensator stockCompensator;
+    @Resource
+    private SeckillPrepayStore prepayStore;
 
     /** RocketMQ 延迟级别14 ≈ 10分钟后触发订单超时检查 */
     private static final int ORDER_TIMEOUT_DELAY_LEVEL = 14;
@@ -432,6 +438,16 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
             return sn;
         }
 
+        // 拒绝旧批次或已补偿的 MQ 消息：只有仍持有当前用户占位的 sn 才能建单。
+        Long fkSeckillId = orderMessage.getFkSeckillId();
+        if (fkSeckillId != null) {
+            String reservedSn = redis.get(
+                    SeckillRedisKeys.userOrder(fkSeckillId, fkCourseId, fkUserId));
+            if (!sn.equals(reservedSn)) {
+                throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀占位已失效，忽略过期订单消息");
+            }
+        }
+
         String existingUnpaidSn = findUnpaidSn(fkUserId, fkCourseId);
         if (StrUtil.isNotBlank(existingUnpaidSn) && !existingUnpaidSn.equals(sn)) {
             throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "您已有该课程的待付款订单");
@@ -461,43 +477,83 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         order.setPayType(ML.Order.NO_PAY);
         order.setStatus(ML.Order.UNPAID);
         order.setFkUserId(fkUserId);
-        Result<User> userResult = userFeign.select(fkUserId);
-        if (ObjectUtil.isNull(userResult)) {
-            throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "用户微服务远程调用失败，请联系管理员。");
+        // ml-sale 下单时已带上用户名快照，正常情况下无需再同步远程调用 user 微服务；
+        // 仅当消息缺失该字段（如灰度期间的旧版本消息）时才回退查询，保证兼容与可用性。
+        String username = orderMessage.getUsername();
+        if (StrUtil.isBlank(username)) {
+            Result<User> userResult = userFeign.select(fkUserId);
+            if (ObjectUtil.isNull(userResult)) {
+                throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "用户微服务远程调用失败，请联系管理员。");
+            }
+            User user = userResult.getData();
+            if (ObjectUtil.isNull(user)) {
+                throw new ServiceException(ResultCode.USER_NOT_FOUND, fkUserId + "号用户数据不存在");
+            }
+            username = user.getUsername();
         }
-        User user = userResult.getData();
-        if (ObjectUtil.isNull(user)) {
-            throw new ServiceException(ResultCode.USER_NOT_FOUND, fkUserId + "号用户数据不存在");
-        }
-        order.setUsername(user.getUsername());
+        order.setUsername(username);
         order.setInfo("通过秒杀活动下单");
         order.setCreated(LocalDateTime.now());
         order.setUpdated(LocalDateTime.now());
 
-        if (mapper.insert(order) <= 0) {
-            throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库添加订单失败");
+        try {
+            if (mapper.insert(order) <= 0) {
+                throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库添加订单失败");
+            }
+        } catch (DuplicateKeyException e) {
+            // 数据库唯一索引是最终幂等防线：MQ 重投同一 sn 时直接视为已处理。
+            return sn;
         }
 
         Long orderId = order.getId();
         OrderDetail orderDetail = new OrderDetail();
         orderDetail.setFkCourseId(fkCourseId);
         orderDetail.setFkOrderId(orderId);
-        Result<Course> courseResult = courseFeign.select(fkCourseId);
-        if (ObjectUtil.isNull(courseResult)) {
-            throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "课程微服务远程调用失败，请联系管理员。");
+        // 课程标题/封面同理：优先用消息里的快照（源头是 seckill_detail 冗余字段），
+        // 避免每单都同步调用 course 微服务，只有快照缺失时才回退远程查询。
+        String courseTitle = orderMessage.getCourseTitle();
+        String courseCover = orderMessage.getCourseCover();
+        if (StrUtil.isBlank(courseTitle)) {
+            Result<Course> courseResult = courseFeign.select(fkCourseId);
+            if (ObjectUtil.isNull(courseResult)) {
+                throw new ServiceException(ResultCode.OPEN_FEIGN_ERROR, "课程微服务远程调用失败，请联系管理员。");
+            }
+            Course course = courseResult.getData();
+            if (ObjectUtil.isNull(course)) {
+                throw new ServiceException(ResultCode.COURSE_NOT_FOUND, fkCourseId + "号课程数据不存在");
+            }
+            courseTitle = course.getTitle();
+            courseCover = course.getCover();
         }
-        Course course = courseResult.getData();
-        if (ObjectUtil.isNull(course)) {
-            throw new ServiceException(ResultCode.COURSE_NOT_FOUND, fkCourseId + "号课程数据不存在");
-        }
-        orderDetail.setCourseTitle(course.getTitle());
-        orderDetail.setCourseCover(course.getCover());
-        orderDetail.setCoursePrice(course.getPrice());
+        orderDetail.setCourseTitle(courseTitle);
+        orderDetail.setCourseCover(courseCover);
+        orderDetail.setCoursePrice(price);
         orderDetail.setCreated(LocalDateTime.now());
         orderDetail.setUpdated(LocalDateTime.now());
         if (orderDetailMapper.insert(orderDetail) <= 0) {
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库添加订单明细失败");
         }
+
+        // 支付回调可能早于建单：若已有 paid 标记，立即补成已支付，禁止后续超时回滚库存
+        if (prepayStore.isPaid(sn)) {
+            Double paidAmount = prepayStore.getPaidAmount(sn);
+            if (paidAmount == null) {
+                paidAmount = skPrice;
+            }
+            UpdateChain.of(mapper)
+                    .set(ORDER.STATUS, ML.Order.PAID)
+                    .set(ORDER.PAY_TYPE, ML.Order.ALI_PAY)
+                    .set(ORDER.PAY_AMOUNT, paidAmount)
+                    .set(ORDER.UPDATED, LocalDateTime.now())
+                    .where(ORDER.SN.eq(sn))
+                    .and(ORDER.STATUS.eq(ML.Order.UNPAID))
+                    .update();
+            prepayStore.clearPaid(sn);
+            prepayStore.clearPrepayAfterOrderCreated(sn);
+            log.info("秒杀订单 {} 建单时发现已支付标记，已补成已支付", sn);
+            return sn;
+        }
+        prepayStore.clearPrepayAfterOrderCreated(sn);
 
         // 延迟消息：超时未支付则取消订单并回滚库存
         OrderTimeoutMessage timeoutMessage = new OrderTimeoutMessage();
@@ -535,37 +591,42 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         return ObjectUtil.isNull(order) ? null : order.getSn();
     }
 
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void handleSeckillOrderTimeout(String sn, Long fkSeckillId, Long fkCourseId, Long fkUserId) {
-        Order order = QueryChain.of(mapper).where(ORDER.SN.eq(sn)).one();
-        if (ObjectUtil.isNull(order) || !ML.Order.UNPAID.equals(order.getStatus())) {
+        // 已支付（含先支付后落库标记）绝不取消、不回补库存
+        if (prepayStore.isPaid(sn)) {
+            log.info("秒杀订单 {} 超时检查时发现已支付标记，跳过取消", sn);
+            Order order = QueryChain.of(mapper).where(ORDER.SN.eq(sn)).one();
+            if (ObjectUtil.isNotNull(order) && ML.Order.UNPAID.equals(order.getStatus())) {
+                Double paidAmount = prepayStore.getPaidAmount(sn);
+                if (paidAmount == null) {
+                    paidAmount = order.getPayAmount();
+                }
+                paySuccessBySn(sn, paidAmount);
+            }
             return;
         }
-        UpdateChain.of(mapper)
+        Order order = QueryChain.of(mapper).where(ORDER.SN.eq(sn)).one();
+        if (ObjectUtil.isNull(order)) {
+            return;
+        }
+        if (ML.Order.PAID.equals(order.getStatus())) {
+            return;
+        }
+        boolean cancelled = UpdateChain.of(mapper)
                 .set(ORDER.STATUS, ML.Order.CANCEL)
                 .set(ORDER.UPDATED, LocalDateTime.now())
                 .where(ORDER.SN.eq(sn))
+                .and(ORDER.STATUS.eq(ML.Order.UNPAID))
                 .update();
-        Long userId = fkUserId != null ? fkUserId : order.getFkUserId();
-        rollbackSeckillStock(fkSeckillId, fkCourseId, userId);
-        log.info("秒杀订单 {} 超时未支付，已取消并回滚库存", sn);
-    }
-
-    /**
-     * 回滚秒杀库存并清理用户占位（兼容旧版无 seckillId 的消息）
-     */
-    private void rollbackSeckillStock(Long fkSeckillId, Long fkCourseId, Long fkUserId) {
-        if (fkCourseId == null) {
+        if (!cancelled) {
             return;
         }
-        if (fkSeckillId != null) {
-            redis.incr(SeckillRedisKeys.stock(fkSeckillId, fkCourseId), 1);
-            if (fkUserId != null) {
-                redis.del(SeckillRedisKeys.userOrder(fkSeckillId, fkCourseId, fkUserId));
-            }
-        } else {
-            redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, 1);
-        }
+        Long userId = fkUserId != null ? fkUserId : order.getFkUserId();
+        boolean rolledBack = stockCompensator.rollbackIfOwned(
+                fkSeckillId, fkCourseId, userId, sn);
+        log.info("秒杀订单 {} 超时未支付，取消成功，库存实际补偿={}", sn, rolledBack);
     }
 
     @Override
@@ -599,20 +660,35 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
                 .where(ORDER.SN.eq(sn))
                 .one();
         if (ObjectUtil.isNull(order)) {
+            // 秒杀：支付回调可能早于 MQ 建单。记 paid 标记并 ack 支付宝，建单时再补状态。
+            // 若连 prepay 都不存在，说明 sn 非法或已过期回滚，仍写标记无意义；但为避免支付宝疯狂重试，
+            // 仅在仍有预支付快照或占位生命周期内时标记。
+            if (prepayStore.getPrepay(sn) != null || prepayStore.isPaid(sn)) {
+                prepayStore.markPaid(sn, payAmount);
+                log.info("秒杀订单 {} 支付回调早于建单，已写入 paid 标记", sn);
+                return true;
+            }
             throw new ServiceException(ResultCode.ORDER_NOT_FOUND, "订单" + sn + "不存在");
         }
         if (ML.Order.PAID.equals(order.getStatus())) {
+            prepayStore.clearPaid(sn);
             return true;
         }
-        if (!UpdateChain.of(mapper)
+        boolean paid = UpdateChain.of(mapper)
                 .set(ORDER.STATUS, ML.Order.PAID)
                 .set(ORDER.PAY_TYPE, ML.Order.ALI_PAY)
                 .set(ORDER.PAY_AMOUNT, payAmount)
                 .set(ORDER.UPDATED, LocalDateTime.now())
                 .where(ORDER.SN.eq(sn))
-                .update()) {
-            throw new ServiceException(ResultCode.MYSQL_ERROR, "更新订单支付状态失败");
+                .and(ORDER.STATUS.eq(ML.Order.UNPAID))
+                .update();
+        if (!paid) {
+            Order latest = QueryChain.of(mapper).where(ORDER.SN.eq(sn)).one();
+            // 重复支付回调幂等成功；已取消订单不能重新改为已支付，应交由退款/人工流程处理。
+            return ObjectUtil.isNotNull(latest) && ML.Order.PAID.equals(latest.getStatus());
         }
+        prepayStore.clearPaid(sn);
+        prepayStore.clearPrepayAfterOrderCreated(sn);
         return true;
     }
 

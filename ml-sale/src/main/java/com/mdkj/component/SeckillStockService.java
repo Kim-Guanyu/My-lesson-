@@ -1,5 +1,6 @@
 package com.mdkj.component;
 
+import cn.hutool.core.util.StrUtil;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
 import com.mdkj.util.SeckillRedisKeys;
@@ -7,6 +8,7 @@ import jakarta.annotation.Resource;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -38,6 +40,10 @@ public class SeckillStockService {
 
     @Resource
     private MyRedis redis;
+    @Resource
+    private SeckillStockCompensator stockCompensator;
+    @Resource
+    private SeckillPrepayStore prepayStore;
 
     public long tryKill(Long seckillId, Long courseId, Long userId, String sn) {
         String stockKey = SeckillRedisKeys.stock(seckillId, courseId);
@@ -54,17 +60,12 @@ public class SeckillStockService {
         return redis.get(SeckillRedisKeys.userOrder(seckillId, courseId, userId));
     }
 
-    public void rollbackKill(Long seckillId, Long courseId, Long userId) {
-        redis.incr(SeckillRedisKeys.stock(seckillId, courseId), 1);
-        redis.del(SeckillRedisKeys.userOrder(seckillId, courseId, userId));
+    public boolean rollbackKill(Long seckillId, Long courseId, Long userId, String sn) {
+        return stockCompensator.rollbackIfOwned(seckillId, courseId, userId, sn);
     }
 
-    public void rollbackStock(Long seckillId, Long courseId) {
-        redis.incr(SeckillRedisKeys.stock(seckillId, courseId), 1);
-    }
-
-    public void clearUserOrder(Long seckillId, Long courseId, Long userId) {
-        redis.del(SeckillRedisKeys.userOrder(seckillId, courseId, userId));
+    public void savePrepay(String sn, Double payAmount, Long userId, Long seckillId, Long courseId) {
+        prepayStore.savePrepay(sn, payAmount, userId, seckillId, courseId);
     }
 
     public void initStock(Long seckillId, Long courseId, int stock) {
@@ -86,5 +87,42 @@ public class SeckillStockService {
             redis.expire(key, 2, TimeUnit.SECONDS);
         }
         return count <= maxPerSecond;
+    }
+
+    /**
+     * 读取活动状态缓存，null 表示未命中（需要调用方回源查库并调用 {@link #cacheStatus} 回填）
+     */
+    public Integer getCachedStatus(Long seckillId) {
+        String val = redis.get(SeckillRedisKeys.status(seckillId));
+        return StrUtil.isBlank(val) ? null : Integer.valueOf(val);
+    }
+
+    /**
+     * 缓存活动状态，短 TTL：既能挡住状态刚翻转瞬间的查库风暴，缓存又能很快自然失效更新
+     */
+    public void cacheStatus(Long seckillId, Integer status) {
+        redis.setEx(SeckillRedisKeys.status(seckillId), String.valueOf(status),
+                ML.Seckill.STATUS_CACHE_SECONDS, TimeUnit.SECONDS);
+    }
+
+    /**
+     * 读取商品明细缓存（标题/封面/价格），返回空 Map 表示未命中
+     */
+    public Map<Object, Object> getCachedDetail(Long seckillId, Long courseId) {
+        return redis.getHashOps().entries(SeckillRedisKeys.detail(seckillId, courseId));
+    }
+
+    /**
+     * 缓存商品明细（标题/封面/价格），与库存缓存保持同样的时长，随每日预热任务刷新
+     */
+    public void cacheDetail(Long seckillId, Long courseId, String courseTitle, String courseCover,
+                             Double coursePrice, Double skPrice) {
+        String key = SeckillRedisKeys.detail(seckillId, courseId);
+        redis.getHashOps().putAll(key, Map.of(
+                "courseTitle", StrUtil.blankToDefault(courseTitle, ""),
+                "courseCover", StrUtil.blankToDefault(courseCover, ""),
+                "coursePrice", String.valueOf(coursePrice),
+                "skPrice", String.valueOf(skPrice)));
+        redis.expire(key, ML.Seckill.STOCK_CACHE_HOURS, TimeUnit.HOURS);
     }
 }

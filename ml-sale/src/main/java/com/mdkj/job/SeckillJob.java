@@ -8,6 +8,7 @@ import com.mdkj.entity.SeckillDetail;
 import com.mdkj.exception.ServiceException;
 import com.mdkj.feign.CourseFeign;
 import com.mdkj.mapper.SeckillMapper;
+import com.mdkj.component.SeckillStockService;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
 import com.mdkj.util.Result;
@@ -40,8 +41,10 @@ public class SeckillJob {
 	private MyRedis myRedis;
 	@Resource
 	private SeckillMapper seckillMapper;
-	@Resource
+    @Resource
 	private CourseFeign courseFeign;
+	@Resource
+	private SeckillStockService seckillStockService;
 	
 	@XxlJob("initSeckill")
 	public void initSeckill() {
@@ -64,6 +67,8 @@ public class SeckillJob {
 	    // 查询秒杀商品ID列表（便于后续批量查询）
 	    List<Long> courseIds = new ArrayList<>();
 	    todaySeckills.forEach(seckill -> {
+	        // 缓存活动状态，避免 kill 热路径每次都查库
+	        seckillStockService.cacheStatus(seckill.getId(), seckill.getStatus());
 	        List<SeckillDetail> seckillDetails = seckill.getSeckillDetails();
 	        if (ObjectUtil.isNotEmpty(seckillDetails)) {
 	            seckillDetails.forEach(seckillDetail -> {
@@ -75,6 +80,10 @@ public class SeckillJob {
 	                        skCount.toString(),
 	                        ML.Seckill.STOCK_CACHE_HOURS,
 	                        TimeUnit.HOURS);
+	                // 缓存商品标题/封面/价格快照，kill 热路径与下单消息可直接读取，不必再查库/查远程服务
+	                seckillStockService.cacheDetail(seckill.getId(), fkCourseId,
+	                        seckillDetail.getCourseTitle(), seckillDetail.getCourseCover(),
+	                        seckillDetail.getCoursePrice(), seckillDetail.getSkPrice());
 	                // 将商品信息加入List中
 	                courseIds.add(fkCourseId);
 	            });
@@ -106,91 +115,59 @@ public class SeckillJob {
 	
 	@XxlJob("startMorningSeckill")
 	public void startMorningSeckill() {
-	    log.info("准备开启今日上午场的秒杀活动");
-	
-	    // 修改当天的上午场的秒杀活动状态
-	    UpdateChain.of(seckillMapper)
-	            .set(SECKILL.STATUS, ML.Seckill.STARTED)
-	            .where(date(SECKILL.START_TIME).eq(curDate()))
-	            .and(SECKILL.TITLE.eq("上午场"))
-	            .update();
-	
-	    log.info("上午场的秒杀活动已开启");
+	    updateStatusByTitle("上午场", ML.Seckill.STARTED, "开启");
 	    XxlJobHelper.handleSuccess("上午场的秒杀活动开启成功");
 	}
 	
 	@XxlJob("stopMorningSeckill")
 	public void stopMorningSeckill() {
-	    log.info("准备关闭今日上午场的秒杀活动");
-	
-	    // 修改当天的上午场的秒杀活动状态
-	    UpdateChain.of(seckillMapper)
-	            .set(SECKILL.STATUS, ML.Seckill.ENDED)
-	            .where(date(SECKILL.START_TIME).eq(curDate()))
-	            .and(SECKILL.TITLE.eq("上午场"))
-	            .update();
-	
-	    log.info("上午场的秒杀活动已关闭");
+	    updateStatusByTitle("上午场", ML.Seckill.ENDED, "关闭");
 	    XxlJobHelper.handleSuccess("上午场的秒杀活动关闭成功");
 	}
 	
 	@XxlJob("startNoonSeckill")
 	public void startNoonSeckill() {
-	    log.info("准备开启今日中午场的秒杀活动");
-	
-	    // 修改当天的中午场的秒杀活动状态
-	    UpdateChain.of(seckillMapper)
-	            .set(SECKILL.STATUS, ML.Seckill.STARTED)
-	            .where(date(SECKILL.START_TIME).eq(curDate()))
-	            .and(SECKILL.TITLE.eq("中午场"))
-	            .update();
-	
-	    log.info("中午场的秒杀活动已开启");
+	    updateStatusByTitle("中午场", ML.Seckill.STARTED, "开启");
 	    XxlJobHelper.handleSuccess("中午场的秒杀活动开启成功");
 	}
 	
 	@XxlJob("stopNoonSeckill")
 	public void stopNoonSeckill() {
-	    log.info("准备关闭今日中午场的秒杀活动");
-	
-	    // 修改当天的中午场的秒杀活动状态
-	    UpdateChain.of(seckillMapper)
-	            .set(SECKILL.STATUS, ML.Seckill.ENDED)
-	            .where(date(SECKILL.START_TIME).eq(curDate()))
-	            .and(SECKILL.TITLE.eq("中午场"))
-	            .update();
-	
-	    log.info("中午场的秒杀活动已关闭");
+	    updateStatusByTitle("中午场", ML.Seckill.ENDED, "关闭");
 	    XxlJobHelper.handleSuccess("中午场的秒杀活动关闭成功");
 	}
 	
 	@XxlJob("startAfterNoonSeckill")
 	public void startAfterNoonSeckill() {
-	    log.info("准备开启今日下午场的秒杀活动");
-	
-	    // 修改当天的下午场的秒杀活动状态
-	    UpdateChain.of(seckillMapper)
-	            .set(SECKILL.STATUS, ML.Seckill.STARTED)
-	            .where(date(SECKILL.START_TIME).eq(curDate()))
-	            .and(SECKILL.TITLE.eq("下午场"))
-	            .update();
-	
-	    log.info("下午场的秒杀活动已开启");
+	    updateStatusByTitle("下午场", ML.Seckill.STARTED, "开启");
 	    XxlJobHelper.handleSuccess("下午场的秒杀活动开启成功");
 	}
 	
 	@XxlJob("stopAfterNoonSeckill")
 	public void stopAfterNoonSeckill() {
-	    log.info("准备关闭今日下午场的秒杀活动");
-	
-	    // 修改当天的下午场的秒杀活动状态
-	    UpdateChain.of(seckillMapper)
-	            .set(SECKILL.STATUS, ML.Seckill.ENDED)
-	            .where(date(SECKILL.START_TIME).eq(curDate()))
-	            .and(SECKILL.TITLE.eq("下午场"))
-	            .update();
-	
-	    log.info("下午场的秒杀活动已关闭");
+	    updateStatusByTitle("下午场", ML.Seckill.ENDED, "关闭");
 	    XxlJobHelper.handleSuccess("下午场的秒杀活动关闭成功");
+	}
+
+	/**
+	 * 按场次标题修改当天秒杀活动状态，并立即刷新 Redis 状态缓存，
+	 * 避免状态刚翻转的瞬间大量 kill 请求穿透到短 TTL 缓存过期前的窗口打到数据库。
+	 */
+	private void updateStatusByTitle(String title, Integer status, String actionLabel) {
+	    log.info("准备{}今日{}的秒杀活动", actionLabel, title);
+	    UpdateChain.of(seckillMapper)
+	            .set(SECKILL.STATUS, status)
+	            .where(date(SECKILL.START_TIME).eq(curDate()))
+	            .and(SECKILL.TITLE.eq(title))
+	            .update();
+
+	    List<Long> ids = QueryChain.of(seckillMapper)
+	            .select(SECKILL.ID)
+	            .where(date(SECKILL.START_TIME).eq(curDate()))
+	            .and(SECKILL.TITLE.eq(title))
+	            .listAs(Long.class);
+	    ids.forEach(id -> seckillStockService.cacheStatus(id, status));
+
+	    log.info("{}的秒杀活动已{}", title, actionLabel);
 	}
 }

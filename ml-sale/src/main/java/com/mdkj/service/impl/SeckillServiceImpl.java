@@ -31,6 +31,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 
 import static com.mdkj.entity.table.SeckillDetailTableDef.SECKILL_DETAIL;
@@ -236,12 +237,16 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
             throw new ServiceException(ResultCode.SECKILL_TOO_FAST, ResultCode.SECKILL_TOO_FAST.getMESSAGE());
         }
 
-        Seckill seckill = seckillMapper.selectOneById(fkSeckillId);
-        if (ObjectUtil.isNull(seckill)) {
-            throw new ServiceException(ResultCode.SECKILL_NOT_FOUND, fkSeckillId + "号秒杀活动不存在");
+        // 活动状态优先读 Redis 短 TTL 缓存，未命中才查库并回填，避免每次 kill 请求都打 MySQL
+        Integer status = seckillStockService.getCachedStatus(fkSeckillId);
+        if (status == null) {
+            Seckill seckill = seckillMapper.selectOneById(fkSeckillId);
+            if (ObjectUtil.isNull(seckill)) {
+                throw new ServiceException(ResultCode.SECKILL_NOT_FOUND, fkSeckillId + "号秒杀活动不存在");
+            }
+            status = seckill.getStatus();
+            seckillStockService.cacheStatus(fkSeckillId, status);
         }
-
-        Integer status = seckill.getStatus();
         if (status.equals(ML.Seckill.NOT_START)) {
             throw new ServiceException(ResultCode.SECKILL_NOT_START, fkSeckillId + "号秒杀活动未开始");
         }
@@ -252,27 +257,41 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
             throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀活动状态异常");
         }
 
-        SeckillDetail detail = QueryChain.of(seckillDetailMapper)
-                .where(SECKILL_DETAIL.FK_SECKILL_ID.eq(fkSeckillId))
-                .and(SECKILL_DETAIL.FK_COURSE_ID.eq(fkCourseId))
-                .one();
-        if (ObjectUtil.isNull(detail)) {
-            throw new ServiceException(ResultCode.SECKILL_DETAIL_NOT_FOUND,
-                    fkSeckillId + "号活动下不存在课程" + fkCourseId);
+        // 商品明细（标题/封面/价格）同样优先读 Redis 缓存，未命中才查库并回填
+        String courseTitle;
+        String courseCover;
+        Double coursePrice;
+        Double skPrice;
+        Map<Object, Object> cachedDetail = seckillStockService.getCachedDetail(fkSeckillId, fkCourseId);
+        if (!cachedDetail.isEmpty()) {
+            courseTitle = (String) cachedDetail.get("courseTitle");
+            courseCover = (String) cachedDetail.get("courseCover");
+            coursePrice = Double.valueOf((String) cachedDetail.get("coursePrice"));
+            skPrice = Double.valueOf((String) cachedDetail.get("skPrice"));
+        } else {
+            SeckillDetail detail = QueryChain.of(seckillDetailMapper)
+                    .where(SECKILL_DETAIL.FK_SECKILL_ID.eq(fkSeckillId))
+                    .and(SECKILL_DETAIL.FK_COURSE_ID.eq(fkCourseId))
+                    .one();
+            if (ObjectUtil.isNull(detail)) {
+                throw new ServiceException(ResultCode.SECKILL_DETAIL_NOT_FOUND,
+                        fkSeckillId + "号活动下不存在课程" + fkCourseId);
+            }
+            courseTitle = detail.getCourseTitle();
+            courseCover = detail.getCourseCover();
+            coursePrice = detail.getCoursePrice();
+            skPrice = detail.getSkPrice();
+            seckillStockService.cacheDetail(fkSeckillId, fkCourseId, courseTitle, courseCover, coursePrice, skPrice);
         }
 
-        String existingSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
-        if (StrUtil.isNotBlank(existingSn)) {
-            log.info("用户 {} 重复秒杀请求，返回已有订单号 {}", fkUserId, existingSn);
-            return existingSn;
-        }
-
+        // Lua 内部已原子校验用户是否已占位，无需在此额外查一次 Redis 再走一遍常规路径
         String sn = RandomUtil.randomNumbers(19);
         long luaResult = seckillStockService.tryKill(fkSeckillId, fkCourseId, fkUserId, sn);
 
         if (luaResult == 0) {
             String reservedSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
             if (StrUtil.isNotBlank(reservedSn)) {
+                log.info("用户 {} 重复秒杀请求，返回已有订单号 {}", fkUserId, reservedSn);
                 return reservedSn;
             }
             throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀状态异常，请稍后重试");
@@ -281,20 +300,29 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
             throw new ServiceException(ResultCode.SECKILL_STOCK_OUT, ResultCode.SECKILL_STOCK_OUT.getMESSAGE());
         }
 
+        // 预支付快照：前端可在 MQ 建单前凭 sn 拉支付宝二维码，金额以后端快照为准
+        seckillStockService.savePrepay(sn, skPrice, fkUserId, fkSeckillId, fkCourseId);
+
         OrderMessage orderMessage = new OrderMessage();
         orderMessage.setSn(sn);
         orderMessage.setFkSeckillId(fkSeckillId);
         orderMessage.setFkUserId(fkUserId);
         orderMessage.setFkCourseId(fkCourseId);
-        orderMessage.setSkPrice(detail.getSkPrice());
-        orderMessage.setPrice(detail.getCoursePrice());
+        orderMessage.setSkPrice(skPrice);
+        orderMessage.setPrice(coursePrice);
+        // 携带用户名/课程信息快照，ml-order 消费端建单时可直接使用，无需再同步调用 user/course 微服务
+        orderMessage.setUsername(user.getUsername());
+        orderMessage.setCourseTitle(courseTitle);
+        orderMessage.setCourseCover(courseCover);
 
         try {
             rocketmqTemplate.convertAndSend("ml-topic:ml-tag", orderMessage);
             log.info("秒杀 MQ 发送成功，用户 {} 课程 {} 订单 {}", fkUserId, fkCourseId, sn);
         } catch (Exception e) {
             log.error("秒杀 MQ 发送失败，回滚库存", e);
-            seckillStockService.rollbackKill(fkSeckillId, fkCourseId, fkUserId);
+            boolean rolledBack = seckillStockService.rollbackKill(
+                    fkSeckillId, fkCourseId, fkUserId, sn);
+            log.warn("秒杀 MQ 发送失败补偿结果：订单 {}，rolledBack={}", sn, rolledBack);
             throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀下单失败，请稍后重试");
         }
         return sn;

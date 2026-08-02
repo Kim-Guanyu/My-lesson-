@@ -2,9 +2,6 @@ package com.mdkj.component;
 
 import com.mdkj.dto.OrderMessage;
 import com.mdkj.service.OrderService;
-import com.mdkj.util.ML;
-import com.mdkj.util.MyRedis;
-import com.mdkj.util.SeckillRedisKeys;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.rocketmq.spring.annotation.ConsumeMode;
@@ -27,7 +24,9 @@ public class OrderMessageListener implements RocketMQListener<OrderMessage> {
     @Resource
     private OrderService orderService;
     @Resource
-    private MyRedis redis;
+    private SeckillStockCompensator stockCompensator;
+    @Resource
+    private SeckillPrepayStore prepayStore;
 
     @Override
     public void onMessage(OrderMessage orderMessage) {
@@ -36,21 +35,27 @@ public class OrderMessageListener implements RocketMQListener<OrderMessage> {
         try {
             orderService.createSeckillOrder(orderMessage);
         } catch (Exception e) {
-            log.error("MQ 创建秒杀订单失败，回滚库存", e);
+            String sn = orderMessage.getSn();
+            // 用户已付款时禁止回补库存，必须让 MQ 重试直到建单成功，否则会丢单
+            if (prepayStore.isPaid(sn)) {
+                log.error("MQ 创建秒杀订单失败但订单已支付，跳过库存补偿并触发重试，sn={}", sn, e);
+                if (e instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                throw new IllegalStateException("已支付订单建单失败，需重试: " + sn, e);
+            }
+            log.error("MQ 创建秒杀订单失败，执行幂等库存补偿", e);
             Long fkSeckillId = orderMessage.getFkSeckillId();
             Long fkCourseId = orderMessage.getFkCourseId();
             Long fkUserId = orderMessage.getFkUserId();
-            if (fkCourseId != null) {
-                if (fkSeckillId != null) {
-                    redis.incr(SeckillRedisKeys.stock(fkSeckillId, fkCourseId), 1);
-                    if (fkUserId != null) {
-                        redis.del(SeckillRedisKeys.userOrder(fkSeckillId, fkCourseId, fkUserId));
-                    }
-                } else {
-                    redis.incr(ML.Redis.SECKILL_COURSE_COUNT_PREFIX + fkCourseId, 1);
-                }
-            }
-            throw e;
+            boolean rolledBack = stockCompensator.rollbackIfOwned(
+                    fkSeckillId,
+                    fkCourseId,
+                    fkUserId,
+                    sn);
+            log.warn("MQ 订单 {} 消费失败已结束消费，库存实际补偿={}", sn, rolledBack);
+            // 补偿成功后不再抛异常，避免 RocketMQ 重投同一消息并重复补库存。
+            // 若 Redis 补偿自身失败，rollbackIfOwned 会抛异常，消息仍会重试。
         }
     }
 }

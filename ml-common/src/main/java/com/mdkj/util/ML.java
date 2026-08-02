@@ -34,6 +34,14 @@ public class ML {
         String SECKILL_USER_ORDER_PREFIX = "seckill:user:";
         /** 秒杀接口用户限流 */
         String SECKILL_RATE_PREFIX = "seckill:rate:";
+        /** 秒杀活动状态缓存：seckill:status:{seckillId} */
+        String SECKILL_STATUS_PREFIX = "seckill:status:";
+        /** 秒杀商品明细缓存（价格/标题等）：seckill:detail:{seckillId}:{courseId} */
+        String SECKILL_DETAIL_PREFIX = "seckill:detail:";
+        /** 秒杀预支付快照（拉码不依赖订单落库）：seckill:prepay:{sn} */
+        String SECKILL_PREPAY_PREFIX = "seckill:prepay:";
+        /** 秒杀已支付待落库标记（支付回调早于 MQ 建单）：seckill:paid:{sn} */
+        String SECKILL_PAID_PREFIX = "seckill:paid:";
     }
 
     public interface MinIO {
@@ -131,6 +139,8 @@ public class ML {
         int USER_ORDER_TTL_SECONDS = 960;
         /** 单用户每秒最多 kill 次数 */
         int USER_KILL_RATE_PER_SECOND = 10;
+        /** 活动状态缓存时长（秒）：短 TTL，既能扛住状态刚翻转瞬间的查询风暴，又能很快自愈 */
+        int STATUS_CACHE_SECONDS = 5;
 
         /** 秒杀活动状态处理方法：数字代码 -> 字符串 */
         static String statusFormat(Integer seckillCode) {
