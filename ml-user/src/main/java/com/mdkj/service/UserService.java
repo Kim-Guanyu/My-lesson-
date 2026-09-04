@@ -107,6 +107,14 @@ public interface UserService extends IService<User> {
      * @return 返回登陆成功的用户记录，Token令牌以及菜单列表
      */
     LoginVO loginByPhone(LoginByPhoneDTO dto);
+
+    /**
+     * 退出登录：作废服务端令牌。
+     *
+     * @param token 客户端携带的裸令牌
+     * @return 恒为 {@code true}，登出是幂等操作
+     */
+    boolean logout(String token);
     /**
      * 统计用户数据，包括用户性别比例，日增用户数量，用户总数等
      *

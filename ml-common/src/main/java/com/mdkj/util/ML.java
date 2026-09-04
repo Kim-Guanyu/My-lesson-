@@ -7,6 +7,29 @@ import java.util.Objects;
 public class ML {
 
     public interface Redis {
+        /**
+         * 登录令牌：login:token:{uuid} -> 用户信息JSON
+         *
+         * <p>注意：返回给客户端的 token 只是那个裸 uuid，前缀是服务端拼上去的。
+         * 加前缀的目的是让登录态在 Redis 里有独立命名空间，才能按前缀统计在线数、
+         * 排查问题时一眼区分登录态和业务缓存。</p>
+         *
+         * <p>网关 {@code TokenGlobalFilter} 里另有一份同值的常量副本
+         * （ml-gateway 未依赖 ml-common），改这里必须同步改那边。</p>
+         */
+        String LOGIN_TOKEN_PREFIX = "login:token:";
+        /**
+         * 登录令牌的用户反向索引：login:user:{userId} -> Set&lt;uuid&gt;
+         *
+         * <p>用来回答「某个用户当前有哪些有效令牌」，这是主动踢人的前提：
+         * 只有 token -> user 的正向映射时，改了用户信息也找不到该删哪个 key。</p>
+         *
+         * <p>用 Set 而不是 String，是为了支持同一用户多端同时在线
+         * （后台 + 小程序），踢人时一次性全部清掉。</p>
+         */
+        String LOGIN_USER_INDEX_PREFIX = "login:user:";
+        /** 登录令牌有效期（分钟）。每次请求经过网关都会重置，即闲置超时而非绝对超时 */
+        long LOGIN_TOKEN_TTL_MINUTES = 30L;
         /** 手机登录验证码Key值前缀 */
         String LOGIN_VCODE_PREFIX = "login_vcode:";
         /** 解绑验证码Key值前缀 */

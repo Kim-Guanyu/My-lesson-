@@ -209,6 +209,24 @@ public class UserController {
         return userService.loginByPhone(dto);
     }
 
+    /**
+     * 退出登录：把服务端的令牌真正删掉。
+     *
+     * <p>此前前端「退出登录」只清了 localStorage，Redis 里的令牌仍然有效——
+     * 谁抄到过那个令牌就还能继续用，直到它自然过期。</p>
+     *
+     * <p>注意本接口<b>不能</b>加入网关白名单：正是要靠网关先校验令牌有效，
+     * 才能确定 token 是本人的。</p>
+     *
+     * @param token 请求头中的令牌，由网关校验通过后透传到这里
+     * @return 恒为 {@code true}（已登出和重复登出都算成功，登出天然幂等）
+     */
+    @Operation(summary = "登录 - 退出", description = "作废当前令牌，退出登录")
+    @PostMapping("logout")
+    public boolean logout(@RequestHeader("token") String token) {
+        return userService.logout(token);
+    }
+
     @Operation(summary = "查询 - 统计数据", description = "查询用户相关的统计数据")
     @GetMapping("statistics")
     public Map<String, Object> statistics() {

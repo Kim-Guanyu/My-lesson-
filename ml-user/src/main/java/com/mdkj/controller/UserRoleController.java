@@ -43,7 +43,8 @@ public class UserRoleController {
     @PostMapping("save")
     @Operation(description="保存用户角色关系表")
     public boolean save(@RequestBody @Parameter(description="用户角色关系表")UserRole userRole) {
-        return userRoleService.save(userRole);
+        // 用 AndKickUser 版本：角色变了要清掉该用户登录态，否则新权限不生效
+        return userRoleService.saveAndKickUser(userRole);
     }
 
     /**
@@ -55,7 +56,8 @@ public class UserRoleController {
     @DeleteMapping("remove/{id}")
     @Operation(description="根据主键用户角色关系表")
     public boolean remove(@PathVariable @Parameter(description="用户角色关系表主键")Long id) {
-        return userRoleService.removeById(id);
+        // 用 AndKickUser 版本：撤销角色后必须让他重新登录，否则旧权限还能继续用
+        return userRoleService.removeByIdAndKickUser(id);
     }
 
     /**
@@ -67,7 +69,8 @@ public class UserRoleController {
     @PutMapping("update")
     @Operation(description="根据主键更新用户角色关系表")
     public boolean update(@RequestBody @Parameter(description="用户角色关系表主键")UserRole userRole) {
-        return userRoleService.updateById(userRole);
+        // 用 AndKickUser 版本：关系改到别的用户时，新旧两个用户的登录态都要清
+        return userRoleService.updateAndKickUser(userRole);
     }
 
     /**

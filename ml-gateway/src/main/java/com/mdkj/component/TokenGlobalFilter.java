@@ -26,6 +26,18 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class TokenGlobalFilter implements GlobalFilter, Ordered {
 
+    /**
+     * 登录令牌的 Redis key 前缀，必须与 ml-common 的
+     * {@code ML.Redis.LOGIN_TOKEN_PREFIX} 保持一致。
+     *
+     * <p>这里之所以是一份硬编码副本而不是直接引用常量：ml-gateway 没有依赖 ml-common
+     * （网关只做路由与鉴权，刻意不引入业务模块）。<b>改动其中一处必须同步改另一处。</b></p>
+     */
+    private static final String LOGIN_TOKEN_PREFIX = "login:token:";
+
+    /** 令牌有效期（分钟），与 ML.Redis.LOGIN_TOKEN_TTL_MINUTES 保持一致 */
+    private static final long LOGIN_TOKEN_TTL_MINUTES = 30L;
+
     /** 请求白名单：名单中的请求直接放行（从配置中心读取）*/
     @Value("${token.white_list}")
     private List<String> WHITE_LIST;
@@ -45,13 +57,15 @@ public class TokenGlobalFilter implements GlobalFilter, Ordered {
         if (StrUtil.isBlank(token)) {
             return buildResponseData(response, 6000, "登录过期", "请求中未携带Token令牌");
         }
-        // 解析Token令牌
-        String tokenMessage = stringRedisTemplate.opsForValue().get(token);
+        // 客户端携带的是裸 uuid，服务端拼上前缀才是真正的 Redis key
+        String tokenKey = LOGIN_TOKEN_PREFIX + token;
+        // 解析Token令牌：查不到即视为未登录/已过期/已被强制下线
+        String tokenMessage = stringRedisTemplate.opsForValue().get(tokenKey);
         if (StrUtil.isBlank(tokenMessage)) {
             return buildResponseData(response, 6000, "登录过期", "Redis中不存在该Token令牌");
         }
-        // 续期Token令牌
-        stringRedisTemplate.expire(token, 30, TimeUnit.MINUTES);
+        // 续期Token令牌：闲置超时而非绝对超时，只要还在操作就不会掉线
+        stringRedisTemplate.expire(tokenKey, LOGIN_TOKEN_TTL_MINUTES, TimeUnit.MINUTES);
         // 放行请求
         return chain.filter(exchange);
     }

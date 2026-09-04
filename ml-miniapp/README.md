@@ -1,14 +1,14 @@
-# 绿果付费短剧 · 微信小程序
+# 知堂 · 微信小程序
 
-绿果付费短剧平台的 **C 端用户小程序**，提供短剧浏览、视频播放、弹幕互动、购物车与个人中心等功能。
+知堂线上网课平台的 **C 端学员小程序**，提供课程浏览、视频播放、弹幕互动、购物车与个人中心等功能。
 
 ## 主要页面
 
 | 路径 | 说明 |
 |------|------|
 | `pages/index/index` | 首页（轮播、推荐） |
-| `pages/course/course` | 短剧列表 / 搜索 |
-| `pages/course/detail/detail` | 短剧详情、视频播放、弹幕 |
+| `pages/course/course` | 课程列表 / 搜索 |
+| `pages/course/detail/detail` | 课程详情、章节课时、视频播放、弹幕 |
 | `pages/cart/cart` | 购物车 |
 | `pages/user/user` | 个人中心 |
 | `pages/user/order/order` | 我的订单 |

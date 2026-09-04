@@ -2,13 +2,13 @@ package com.mdkj.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.lang.UUID;
 import cn.hutool.core.util.*;
 import cn.hutool.crypto.digest.BCrypt;
 import cn.hutool.json.JSONUtil;
 import com.mdkj.dto.*;
 import com.mdkj.entity.*;
 import com.mdkj.exception.ServiceException;
+import com.mdkj.component.LoginTokenStore;
 import com.mdkj.mapper.UserRoleMapper;
 import com.mdkj.util.*;
 import com.mdkj.vo.PageVO;
@@ -53,6 +53,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
 
     @Resource
     private MyRedis redis;
+
+    /** 登录令牌仓库：签发令牌、以及在用户信息变更后强制其重新登录 */
+    @Resource
+    private LoginTokenStore loginTokenStore;
 
     @Override
     public boolean insert(UserInsertDTO dto) {
@@ -197,6 +201,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
                 .update()) {
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库修改失败");
         }
+
+        // 数据库已改，Redis 里那份登录快照随即过时（旧昵称、旧手机号等），
+        // 强制该用户重新登录以拉取新快照
+        loginTokenStore.invalidateByUserId(dto.getId());
         return true;
     }
 
@@ -218,6 +226,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         if (mapper.deleteById(id) <= 0) {
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库删除失败");
         }
+
+        // 用户已删除，但其令牌在 Redis 里仍然有效，会变成「幽灵登录态」：
+        // 网关照旧放行，业务侧还能凭快照里的 userId 继续操作。必须清掉。
+        loginTokenStore.invalidateByUserId(id);
         return true;
     }
 
@@ -244,6 +256,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         if (mapper.deleteBatchByIds(ids) != ids.size()) {
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库删除失败");
         }
+
+        // 同 delete：批量清掉这批用户的全部登录态，避免残留幽灵登录态
+        loginTokenStore.invalidateByUserIds(ids);
         return true;
     }
 
@@ -276,6 +291,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库重置密码失败");
         }
 
+        // 密码已被管理员重置，旧令牌必须立刻失效——
+        // 否则「重置密码」挡不住已经登录的会话，等于没踢下线
+        loginTokenStore.invalidateByUserId(id);
+
         // 返回用户的默认密码
         return ML.User.DEFAULT_PASSWORD;
     }
@@ -304,6 +323,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
                 .update()) {
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库修改密码失败");
         }
+
+        // 改密码后作废全部令牌：这正是「改密码能把其它设备踢下线」的实现方式，
+        // 也是密码疑似泄露时用户能自救的手段
+        loginTokenStore.invalidateByUserId(id);
         return true;
     }
 
@@ -483,6 +506,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
                 .where(USER.ID.eq(dto.getId()))
                 .update()) {
             redis.del(key);
+            // 手机号是登录凭据之一，换号后旧令牌一并作废
+            loginTokenStore.invalidateByUserId(id);
         } else {
             throw new ServiceException(ResultCode.MYSQL_ERROR, "数据库修改手机号码失败");
         }
@@ -513,6 +538,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
         return this.buildLoginVO(user);
     }
 
+    @Override
+    public boolean logout(String token) {
+        // 只删这一个令牌，不影响该用户在其它端的登录态
+        // （多端共存的设计见 LoginTokenStore 类注释）
+        loginTokenStore.invalidateByToken(token);
+        return true;
+    }
+
     /**
      * 组装LoginVO
      *
@@ -522,9 +555,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User>  implements U
     private LoginVO buildLoginVO(User user) {
         LoginVO result = new LoginVO();
 
-        // 生成Token令牌并存入redis，30分钟后过期
-        String tokenKey = UUID.randomUUID().toString();
-        redis.setEx(tokenKey, JSONUtil.toJsonStr(user), 30, TimeUnit.MINUTES);
+        // 签发Token令牌：内部完成「写用户反向索引 + 写令牌本体（30分钟过期）」，
+        // 并在存入 Redis 前抹掉密码哈希。返回值是给客户端的裸令牌，不含 key 前缀。
+        String tokenKey = loginTokenStore.issue(user);
 
         // 查询角色ID列表（该用户的全部角色主键）
         // select fk_role_id from user_role where fk_user_id = ?
