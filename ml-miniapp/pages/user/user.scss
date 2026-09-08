@@ -1,4 +1,4 @@
-@import "../../app.scss";
+@import "../../styles/theme.scss";
 
 .user-scroll {
   height: 100vh;
@@ -7,15 +7,25 @@
 
 .user-loading {
   padding: 80rpx;
-  color: $gray;
+  color: $text-secondary;
 }
 
 .user-head {
-  margin-top: 40rpx;
+  margin: 32rpx 24rpx;
+  padding: 32rpx;
+  background: $surface;
+  border-radius: 20rpx;
+  box-shadow: 0 2rpx 16rpx $shadow;
 
   .nickname-col {
     text-align: left;
-    line-height: 80rpx;
+    line-height: 60rpx;
+
+    view:first-child {
+      font-size: 36rpx;
+      font-weight: 700;
+      color: $text-primary;
+    }
   }
 
   .van-tag {
@@ -24,11 +34,15 @@
 }
 
 .operation-btn {
-  margin: 30rpx 0;
+  margin: 24rpx;
 }
 
 .user-body {
   text-align: left;
+  margin: 0 24rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx $shadow;
 }
 
 .user-foot {
@@ -36,6 +50,6 @@
 
   .van-button {
     margin-top: 30rpx;
-    border-radius: 15rpx;
+    border-radius: 44rpx;
   }
 }

@@ -32,9 +32,17 @@
           <van-empty wx:else description="暂无摘要图"/>
         </van-tab>
         <van-tab title="目录">
-          <view class="catalog" wx:for="{{course.seasons}}" wx:key="id" wx:for-item="season">
-            <view class="season-title">{{season.title}}</view>
-            <view class="ep" wx:for="{{season.episodes}}" wx:key="id" wx:for-item="ep">· {{ep.title}}</view>
+          <view class="catalog" wx:for="{{course.seasons}}" wx:key="id" wx:for-item="season" wx:for-index="seasonIndex">
+            <view class="season-title">第{{seasonIndex + 1}}章 {{season.title}}</view>
+            <view class="ep {{currentEpisodeId === ep.id + '' ? 'ep-active' : ''}}"
+                  wx:for="{{season.episodes}}" wx:key="id" wx:for-item="ep" wx:for-index="epIndex"
+                  data-id="{{ep.id}}" data-video="{{ep.video}}" data-cover="{{ep.cover}}" data-title="{{ep.title}}"
+                  bindtap="onEpisodeTap">
+              <text class="ep-idx">{{epIndex + 1}}</text>
+              <text class="ep-title">{{ep.title}}</text>
+              <text class="ep-playing" wx:if="{{currentEpisodeId === ep.id + ''}}">播放中</text>
+            </view>
+            <view class="ep-empty" wx:if="{{!season.episodes || season.episodes.length === 0}}">本章暂无集次</view>
           </view>
         </van-tab>
       </van-tabs>

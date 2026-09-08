@@ -1,12 +1,14 @@
-@import "../../../app.scss";
+@import "../../../styles/theme.scss";
 
 .login-tip {
   padding-top: 120rpx;
   text-align: center;
+  color: $text-secondary;
 
   .login-btn {
     width: 300rpx;
     margin-top: 40rpx;
+    border-radius: 44rpx;
   }
 }
 
@@ -21,26 +23,34 @@
 }
 
 .course-item {
+  background: $surface;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx $shadow;
+
   .title {
     margin-top: 12rpx;
     font-size: 28rpx;
-    color: $yellow;
+    color: $text-primary;
+    font-weight: 500;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    padding: 0 8rpx;
   }
 
   .info {
     margin-top: 8rpx;
     font-size: 22rpx;
-    color: $white;
+    color: $text-secondary;
     line-height: 1.6;
+    padding: 0 8rpx 12rpx;
   }
 }
 
 .loading-tip {
   text-align: center;
   padding: 30rpx;
-  color: $white;
+  color: $text-secondary;
   font-size: 26rpx;
 }

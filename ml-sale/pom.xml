@@ -156,6 +156,11 @@
             <artifactId>redisson-spring-boot-starter</artifactId>
             <version>${redisson-spring-boot-starter.version}</version>
         </dependency>
+        <!-- Spring AI OpenAI（兼容 OpenAI / DeepSeek / 通义等 OpenAI 协议接口）-->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-model-openai</artifactId>
+        </dependency>
 
         <!-- ========== 仅修改此处：和ml-order保持一致的RocketMQ依赖 ========== -->
         <!-- RocketMQ 依赖：继承父POM的统一版本 -->
@@ -169,4 +174,21 @@
         </dependency>
         <!-- ========== RocketMQ 依赖修改结束 ========== -->
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

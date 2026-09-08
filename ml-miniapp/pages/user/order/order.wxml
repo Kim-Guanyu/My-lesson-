@@ -4,7 +4,7 @@
 </view>
 
 <view wx:else class="order-page">
-  <van-tabs active="{{ activeTab }}" bind:change="onTabChange" color="#f9ed69" title-active-color="#f9ed69" background="#252a34">
+  <van-tabs active="{{ activeTab }}" bind:change="onTabChange" color="#2563eb" title-active-color="#2563eb" background="#ffffff">
     <van-tab wx:for="{{statusTabs}}" wx:key="name" name="{{item.name}}" title="{{item.title}}"/>
   </van-tabs>
 

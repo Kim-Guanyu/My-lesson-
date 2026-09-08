@@ -4,7 +4,7 @@
  */
 import mysql from 'mysql2/promise';
 
-const GATEWAY = process.env.GATEWAY || 'http://localhost:24101';
+const GATEWAY = process.env.GATEWAY || 'http://192.168.211.132:24101';
 const seckillId = Number(process.argv[2] || 1);
 const stock = Number(process.argv[3] || 100);
 

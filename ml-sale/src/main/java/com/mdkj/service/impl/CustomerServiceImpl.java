@@ -2,46 +2,119 @@ package com.mdkj.service.impl;
 
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.core.util.StrUtil;
+import com.mdkj.config.CustomerServiceAiProperties;
 import com.mdkj.dto.ChatAskDTO;
 import com.mdkj.dto.ChatFaqVO;
 import com.mdkj.dto.ChatReplyVO;
 import com.mdkj.entity.Order;
 import com.mdkj.feign.OrderFeign;
 import com.mdkj.service.CustomerService;
+import com.mdkj.support.CustomerServiceKnowledge;
 import com.mdkj.util.ML;
 import com.mdkj.util.Result;
 import com.mdkj.vo.PageVO;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
 public class CustomerServiceImpl implements CustomerService {
 
-    private static final List<ChatFaqVO> FAQ_LIST = List.of(
-            new ChatFaqVO("如何购买课程？", "在课程详情页点击「加入购物车」或「立即购买」，也可在首页参与秒杀活动。下单后使用支付宝扫码完成支付即可。"),
-            new ChatFaqVO("如何查看已购课程？", "支付成功后，进入「我的 → 我的课程」即可查看并学习已购买的课程。"),
-            new ChatFaqVO("如何查看订单？", "进入「我的 → 我的订单」可查看全部订单；待付款订单可点击「继续支付」完成付款。"),
-            new ChatFaqVO("支持退款吗？", "课程属于虚拟产品，购买成功后不支持退款，请确认后再下单。"),
-            new ChatFaqVO("如何使用优惠券？", "在购物车页面输入优惠口令并搜索，满足条件后结算时会自动抵扣。"),
-            new ChatFaqVO("秒杀怎么参与？", "首页「整点秒杀」活动进行中时，点击「立即秒杀」抢课，成功后需在15分钟内完成支付。")
-    );
-
     @Resource
     private OrderFeign orderFeign;
+    @Resource
+    private CustomerServiceAiProperties aiProperties;
+    @Autowired(required = false)
+    private ChatClient customerServiceChatClient;
 
     @Override
     public List<ChatFaqVO> faqList() {
-        return FAQ_LIST;
+        return CustomerServiceKnowledge.FAQ_LIST;
     }
 
     @Override
     public ChatReplyVO ask(ChatAskDTO dto) {
+        if (aiProperties.isEnabled() && customerServiceChatClient != null) {
+            try {
+                return askByAi(dto);
+            } catch (Exception e) {
+                log.warn("Spring AI 客服调用失败，question={}", dto.getQuestion(), e);
+                if (!aiProperties.isFallbackToRules()) {
+                    ChatReplyVO vo = new ChatReplyVO();
+                    vo.setReply("智能客服暂时繁忙，请稍后再试或点击上方常见问题。");
+                    vo.setMatched(false);
+                    return vo;
+                }
+            }
+        }
+        return askByRules(dto);
+    }
+
+    private ChatReplyVO askByAi(ChatAskDTO dto) {
+        String question = StrUtil.trim(dto.getQuestion());
+        String systemPrompt = CustomerServiceKnowledge.SYSTEM_ROLE
+                + "\n"
+                + CustomerServiceKnowledge.formatFaqForPrompt()
+                + "\n"
+                + buildUserContext(dto);
+
+        String reply = customerServiceChatClient.prompt()
+                .system(systemPrompt)
+                .user(question)
+                .call()
+                .content();
+
+        ChatReplyVO replyVO = new ChatReplyVO();
+        replyVO.setReply(StrUtil.blankToDefault(reply, "抱歉，暂未生成有效回复，请换个方式提问。"));
+        replyVO.setMatched(true);
+        return replyVO;
+    }
+
+    private String buildUserContext(ChatAskDTO dto) {
+        StringBuilder ctx = new StringBuilder("【当前用户上下文】\n");
+        if (ObjectUtil.isNotNull(dto.getCourseId()) && StrUtil.isNotBlank(dto.getCourseTitle())) {
+            ctx.append("用户正在咨询课程：《").append(dto.getCourseTitle())
+                    .append("》（ID=").append(dto.getCourseId()).append("）\n");
+        }
+        if (ObjectUtil.isNotNull(dto.getFkUserId())) {
+            ctx.append("用户已登录，ID=").append(dto.getFkUserId()).append('\n');
+            ctx.append(summarizeOrders(dto.getFkUserId()));
+        } else {
+            ctx.append("用户未登录，无法查询个人订单。\n");
+        }
+        return ctx.toString();
+    }
+
+    private String summarizeOrders(Long fkUserId) {
+        try {
+            Result<PageVO<Order>> result = orderFeign.myPage(fkUserId, 1, 50);
+            if (ObjectUtil.isNull(result) || ObjectUtil.isNull(result.getData())) {
+                return "订单信息：暂无法查询。\n";
+            }
+            List<Order> records = result.getData().getRecords();
+            if (ObjectUtil.isEmpty(records)) {
+                return "订单信息：该用户暂无订单记录。\n";
+            }
+            long unpaid = records.stream().filter(o -> ML.Order.UNPAID.equals(o.getStatus())).count();
+            long paid = records.stream().filter(o -> ML.Order.PAID.equals(o.getStatus())).count();
+            return String.format("订单信息：待付款 %d 笔，已付款 %d 笔。\n", unpaid, paid);
+        } catch (Exception e) {
+            log.debug("查询用户订单上下文失败 userId={}", fkUserId, e);
+            return "订单信息：查询失败。\n";
+        }
+    }
+
+    /** 规则引擎兜底（原有关键词匹配逻辑） */
+    private ChatReplyVO askByRules(ChatAskDTO dto) {
         String question = StrUtil.trim(dto.getQuestion());
         ChatReplyVO replyVO = new ChatReplyVO();
 
-        for (ChatFaqVO faq : FAQ_LIST) {
+        for (ChatFaqVO faq : CustomerServiceKnowledge.FAQ_LIST) {
             if (match(question, faq.getQuestion())) {
                 replyVO.setReply(buildContextReply(dto, faq.getAnswer()));
                 replyVO.setMatched(true);
@@ -114,21 +187,7 @@ public class CustomerServiceImpl implements CustomerService {
         if (ObjectUtil.isNull(fkUserId)) {
             return base + "登录后可为您查询待付款订单数量。";
         }
-        try {
-            Result<PageVO<Order>> result = orderFeign.myPage(fkUserId, 1, 50);
-            if (ObjectUtil.isNull(result) || ObjectUtil.isNull(result.getData())) {
-                return base;
-            }
-            List<Order> records = result.getData().getRecords();
-            if (ObjectUtil.isEmpty(records)) {
-                return base + "\n您当前暂无订单记录。";
-            }
-            long unpaid = records.stream().filter(o -> ML.Order.UNPAID.equals(o.getStatus())).count();
-            long paid = records.stream().filter(o -> ML.Order.PAID.equals(o.getStatus())).count();
-            return base + String.format("\n您共有 %d 笔待付款订单、%d 笔已付款订单。", unpaid, paid);
-        } catch (Exception e) {
-            return base;
-        }
+        return base + "\n" + summarizeOrders(fkUserId).replace("订单信息：", "");
     }
 
     private boolean match(String question, String faqQuestion) {

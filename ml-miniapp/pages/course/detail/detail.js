@@ -3,6 +3,9 @@ const util = require('../../../utils/util.js');
 const constant = require('../../../utils/const.js');
 const pay = require('../../../utils/pay.js');
 
+// 与后端 ML.Episode.DEFAULT_VIDEO 及历史库内数据保持一致的占位视频名
+const DEFAULT_VIDEO_NAMES = ['default-video.mp4', 'default-episode-video.mp4'];
+
 Page({
   data: {
     MINIO_COURSE_SUMMARY: constant.MINIO_COURSE_SUMMARY,
@@ -16,6 +19,7 @@ Page({
     danmuText: '',
     danmuColor: '#ffffff',
     barrageEpisodeId: null,
+    currentEpisodeId: null,
     currentTime: 0,
     wsConnected: false,
     courseId: null,
@@ -35,10 +39,8 @@ Page({
     if (!course) {
       return {barrageEpisodeId: String(courseId || ''), legacyEpisodeId: null};
     }
-    const seasons = course.seasons || [];
-    const firstSeason = seasons.length ? seasons[0] : null;
-    const episodes = firstSeason ? (firstSeason.episodes || []) : [];
-    const firstEpisodeId = episodes.length && episodes[0].id ? String(episodes[0].id) : '';
+    const firstEpisode = this.firstEpisodeOf(course);
+    const firstEpisodeId = firstEpisode && firstEpisode.id ? String(firstEpisode.id) : '';
     const courseIdStr = String(courseId || course.id || '');
     const barrageEpisodeId = firstEpisodeId || courseIdStr;
     const legacyEpisodeId = firstEpisodeId && courseIdStr && courseIdStr !== barrageEpisodeId
@@ -47,18 +49,83 @@ Page({
     return {barrageEpisodeId, legacyEpisodeId};
   },
 
+  /** 取课程下第一个有集次的章节的首集 */
+  firstEpisodeOf(course) {
+    const seasons = (course && course.seasons) || [];
+    for (let i = 0; i < seasons.length; i++) {
+      const episodes = seasons[i].episodes || [];
+      if (episodes.length) return episodes[0];
+    }
+    return null;
+  },
+
+  /**
+   * 拼集次视频地址。
+   * episode.video 仍是占位默认值（尚未上传真实视频）时回退到 video/lesson.mp4，
+   * 否则会指向 MinIO 里不存在的对象导致黑屏。
+   */
+  resolveEpisodeVideoSrc(episode) {
+    const video = episode && episode.video;
+    if (!video || DEFAULT_VIDEO_NAMES.indexOf(video) !== -1) {
+      return constant.MINIO_VIDEO + 'lesson.mp4';
+    }
+    return constant.MINIO_EPISODE_VIDEO + video;
+  },
+
+  resolveEpisodePoster(episode) {
+    const cover = episode && episode.cover;
+    return cover ? constant.MINIO_EPISODE_VIDEO_COVER + cover : null;
+  },
+
+  onEpisodeTap(ev) {
+    const dataset = (ev.currentTarget && ev.currentTarget.dataset) || {};
+    const episodeId = String(dataset.id || '');
+    if (!episodeId || episodeId === this.data.currentEpisodeId) return;
+    this.playEpisode({
+      id: episodeId,
+      video: dataset.video,
+      cover: dataset.cover,
+      title: dataset.title
+    });
+  },
+
+  /** 切集：换视频源与封面，并把弹幕作用域切到该集 */
+  playEpisode(episode) {
+    this._pendingVideoSrc = this.resolveEpisodeVideoSrc(episode);
+    // 主动切集需要越过 mountVideoWithBarrage 的重入保护，内部 _mountSeq 会丢弃过期结果
+    this._mounting = false;
+    this._playedDanmuKeys = new Set();
+    this.setData({
+      currentEpisodeId: String(episode.id),
+      barrageEpisodeId: String(episode.id),
+      legacyEpisodeId: null,
+      videoPoster: this.resolveEpisodePoster(episode),
+      videoTitle: episode.title || '课程视频',
+      videoReady: false,
+      currentTime: 0,
+      danmuList: [],
+      activeDanmu: [],
+      barrageHistoryLoaded: false
+    }, () => this.mountVideoWithBarrage(0));
+  },
+
   getCourseInfo(courseId) {
     const that = this;
     api.get('course', '/select/' + courseId).then(res => {
       res.created = util.dateFormat(res.created);
       res.updated = util.dateFormat(res.updated);
-      const videoPoster = null;
-      const videoTitle = res.title || '课程视频';
+      // 默认播首集，目录里可点击切集
+      const firstEpisode = that.firstEpisodeOf(res);
+      const videoPoster = that.resolveEpisodePoster(firstEpisode);
+      const videoTitle = (firstEpisode && firstEpisode.title) || res.title || '课程视频';
       const ids = that.resolveBarrageIds(res, courseId);
-      that._pendingVideoSrc = constant.MINIO_VIDEO + 'lesson.mp4';
+      that._pendingVideoSrc = firstEpisode
+        ? that.resolveEpisodeVideoSrc(firstEpisode)
+        : constant.MINIO_VIDEO + 'lesson.mp4';
       that.setData({
         courseId: String(courseId),
         course: res,
+        currentEpisodeId: firstEpisode && firstEpisode.id ? String(firstEpisode.id) : null,
         videoPoster,
         videoTitle,
         barrageEpisodeId: ids.barrageEpisodeId,
@@ -168,15 +235,19 @@ Page({
     }).sort((a, b) => a.time - b.time);
   },
 
+  /**
+   * 按集拉弹幕，切集后互不串台。
+   * legacyEpisodeId 只在首集存在：历史弹幕曾以 courseId 落库，一并合并进来。
+   */
   fetchBarrageList() {
-    const courseId = this.data.courseId;
-    if (!courseId) return Promise.resolve([]);
-    return api.get('episode', '/searchBarrage/course/' + courseId)
-      .then(list => this.normalizeDanmuList(list))
-      .catch(err => {
-        console.error('load barrage history failed', err);
-        return [];
-      });
+    const ids = [this.data.barrageEpisodeId, this.data.legacyEpisodeId]
+      .filter(id => id)
+      .map(id => String(id));
+    if (!ids.length) return Promise.resolve([]);
+    return Promise.all(ids.map(id => api.get('episode', '/searchBarrage/' + id).catch(err => {
+      console.error('load barrage history failed', id, err);
+      return [];
+    }))).then(lists => this.normalizeDanmuList([].concat.apply([], lists)));
   },
 
   getVideoContextId() {

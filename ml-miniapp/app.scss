@@ -1,36 +1,115 @@
-/* 自定义颜色变量 */
-$bg-gray: #252a34;
-$black: #000000;
-$yellow: #f9ed69;
-$orange: #f08a5d;
-$white: #eaeaea;
-$gray: #757171;
-$subBlack: #232121;
+@import "./static/vant-icon.wxss";
+@import "./styles/theme.scss";
 
-/* 全局样式 */
+/* ===== Global page styles ===== */
 page {
-  background-color: $bg-gray; // 背景色
-  color: $white; // 前景色
-  font-size: 35rpx; // 字体大小
-  text-align: center; // 文字居中
-  font-family: 思源黑体, 微软雅黑, Consolas, sans-serif; // 字体
+  background-color: $page-bg;
+  color: $text-primary;
+  font-size: 28rpx;
+  text-align: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
 }
 
-/* 取消滚动条 */
 ::-webkit-scrollbar {
-  display: none; // 隐藏滚动条
-  width: 0; // 宽度
-  height: 0; // 高度
-  color: transparent; // 颜色
+  display: none;
+  width: 0;
+  height: 0;
+  color: transparent;
 }
 
-/** vant分割线 */
+/* ===== Global Vant light-theme overrides ===== */
 .van-divider {
-  padding: 0 20rpx; // 内边距
+  padding: 0 20rpx;
+  color: $text-muted !important;
+  border-color: $border !important;
 }
 
-/** 底线 */
+.van-cell {
+  background-color: $surface !important;
+  color: $text-primary !important;
+}
+
+.van-cell__value {
+  color: $text-secondary !important;
+}
+
+.van-cell-group {
+  background-color: transparent !important;
+}
+
+.van-grid-item__content {
+  background-color: $surface !important;
+  border-radius: 16rpx !important;
+  box-shadow: 0 2rpx 12rpx $shadow;
+}
+
+.van-grid-item__text {
+  color: $text-primary !important;
+}
+
+.van-icon {
+  color: $text-secondary;
+}
+
+.van-tabbar {
+  background-color: $surface !important;
+  box-shadow: 0 -2rpx 16rpx $shadow;
+}
+
+.van-tabbar-item {
+  color: $text-muted !important;
+}
+
+.van-tabbar-item--active {
+  color: $primary !important;
+}
+
+.van-notice-bar {
+  background-color: $primary-light !important;
+  color: $primary !important;
+}
+
+.van-search {
+  background-color: transparent !important;
+}
+
+.van-search__content {
+  background-color: $surface !important;
+  border: 1rpx solid $border;
+}
+
+.van-field__label {
+  color: $text-primary !important;
+}
+
+.van-field__control {
+  color: $text-primary !important;
+}
+
+.van-dialog {
+  background-color: $surface !important;
+}
+
+.van-dialog__header {
+  color: $text-primary !important;
+}
+
+.van-tag--primary {
+  background-color: $primary-light !important;
+  color: $primary !important;
+}
+
+.van-tag--danger {
+  background-color: #fef2f2 !important;
+  color: $price !important;
+}
+
+.van-tag--warning {
+  background-color: #fffbeb !important;
+  color: #d97706 !important;
+}
+
 .baseline {
-  height: 200rpx; // 高度
-  padding-bottom: 50rpx; // 下边距
+  height: 200rpx;
+  padding-bottom: 50rpx;
 }

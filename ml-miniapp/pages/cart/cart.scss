@@ -1,45 +1,52 @@
-@import "../../app.scss";
+@import "../../styles/theme.scss";
 
 .search-coupons {
-  padding: 10rpx 0;
+  padding: 10rpx 24rpx;
 }
 
 .cart-list {
   height: 75vh;
+  padding: 0 12rpx;
 
   .van-swipe-cell {
-    margin: 10rpx;
+    margin: 12rpx 0;
 
     .van-card {
-      color: $yellow;
-      background: $bg-gray;
-      border: 1rpx solid $black;
+      color: $text-primary;
+      background: $surface;
+      border: 1rpx solid $border;
       text-align: left;
-      border-radius: 15rpx;
-      padding: 30rpx;
+      border-radius: 16rpx;
+      padding: 24rpx;
+      box-shadow: 0 2rpx 12rpx $shadow;
 
       .van-card__thumb {
-        width: 230rpx;
+        width: 200rpx;
+        border-radius: 12rpx;
+        overflow: hidden;
       }
 
       .van-card__content {
-        padding-left: 120rpx;
+        padding-left: 24rpx;
       }
 
       .van-card__title {
-        font-size: large;
+        font-size: 30rpx;
         margin-bottom: 10rpx;
+        font-weight: 600;
+        color: $text-primary;
       }
 
       .van-card__price {
-        color: $orange;
+        color: $price;
+        font-weight: 700;
       }
     }
 
     .cart-card-right-slot,
     .van-button {
       height: 100%;
-      font-size: large;
+      font-size: 28rpx;
       line-height: 50rpx;
     }
   }
@@ -60,22 +67,24 @@
 
   .pay-countdown .title {
     margin-bottom: 20rpx;
+    color: $text-primary;
   }
 
   .item {
     display: inline-block;
     width: 60rpx;
     margin-right: 10rpx;
-    color: $white;
+    color: #ffffff;
     font-weight: bold;
     text-align: center;
-    background-color: $black;
-    border-radius: 5rpx;
+    background-color: $primary;
+    border-radius: 8rpx;
   }
 
   .pay-dialog-label {
-    color: $orange;
+    color: $text-primary;
     text-align: center;
     margin: 40rpx 0;
+    font-weight: 600;
   }
 }

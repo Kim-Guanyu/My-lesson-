@@ -1,36 +1,38 @@
-@import "../../app.scss";
+@import "../../styles/theme.scss";
 
 .course-list {
   height: calc(100vh - 140rpx);
-  padding: 0 12rpx 20rpx;
+  padding: 0 24rpx 20rpx;
 
   .course-item {
-    background-color: $black;
+    background-color: $surface;
     border-radius: 16rpx;
     padding-bottom: 16rpx;
     overflow: hidden;
+    box-shadow: 0 2rpx 12rpx $shadow;
+    border: 1rpx solid $border;
 
     .title {
-      font-weight: bold;
+      font-weight: 600;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      color: $yellow;
-      font-size: 30rpx;
+      color: $text-primary;
+      font-size: 28rpx;
       margin-top: 10rpx;
       margin-left: 20rpx;
-      margin-bottom: 20rpx;
+      margin-bottom: 12rpx;
       text-align: left;
       width: calc(100% - 40rpx);
     }
 
     .info {
-      font-size: small;
+      font-size: 24rpx;
       text-align: left;
       line-height: 40rpx;
       width: calc(100% - 40rpx);
       margin-left: 20rpx;
-      color: #d1d5db;
+      color: $text-secondary;
     }
   }
 }

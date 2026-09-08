@@ -245,18 +245,28 @@ ml-gateway（Token 校验）
 
 ## 数据库设计
 
-按业务域拆分为四个 MySQL 库：
+按业务域拆分为四个 MySQL 库，建表脚本位于 [`document/sql/`](document/sql/)：
 
-| 库名 | 含义 | 主要表 |
-|------|------|--------|
-| `ml_ums` | 用户管理 User | `user`、`role`、`menu`、`user_role`、`role_menu` |
-| `ml_cms` | 内容管理 Content | `course`、`season`、`episode`、`category`、`comment`、`report`、`follow` |
-| `ml_oms` | 订单管理 Order | `order`、`order_detail`、`cart` |
-| `ml_sms` | 营销管理 Sales | `banner`、`notice`、`article`、`seckill`、`seckill_detail`、`coupons` |
+| 库名 | 含义 | 建表脚本 | 表 |
+|------|------|----------|-----|
+| `ml_ums` | 用户管理 User | [`ml_ums.sql`](document/sql/ml_ums.sql) | `user`、`role`、`menu`、`user_role`、`role_menu` |
+| `ml_cms` | 内容管理 Content | [`ml_cms.sql`](document/sql/ml_cms.sql) | `category`、`course`、`season`、`episode`、`comment`、`follow`、`report` |
+| `ml_oms` | 订单管理 Order | [`ml_oms.sql`](document/sql/ml_oms.sql) | `order`、`order_detail`、`cart` |
+| `ml_sms` | 营销管理 Sales | [`ml_sms.sql`](document/sql/ml_sms.sql) | `banner`、`notice`、`article`、`coupons`、`seckill`、`seckill_detail` |
 
-实体定义位于 `ml-common/src/main/java/com/mdkj/entity/`，字段与注解（`@Table`、`@Id`）即为表结构的权威描述；`entity/table/` 下的 `*TableDef` 由 MyBatis-Flex APT 生成，用于类型安全的链式查询。
+实体定义位于 `ml-common/src/main/java/com/mdkj/entity/`，与上表 21 张表一一对应；`entity/table/` 下的 `*TableDef` 由 MyBatis-Flex APT 生成，用于类型安全的链式查询。
 
-> ⚠️ 仓库暂未包含建表 SQL，请参照实体类建库建表，或使用 `ml-generator` 反向生成代码。补充 `docs/sql/` 初始化脚本已列入 [Roadmap](#roadmap-与已知不足)。
+### 建表约定
+
+- **主键**：统一 `id bigint AUTO_INCREMENT`。
+- **逻辑外键**：命名为 `fk_<表名>_id`，**均未建物理外键约束**，关联关系由应用层维护——跨库关联（如 `ml_oms.order.fk_user_id → ml_ums.user.id`）本身也无法建物理 FK。
+- **公共字段**：每张表都带 `version`（乐观锁）、`deleted`（逻辑删除，0 未删除 / 1 已删除）、`created`、`updated`。其中 `updated` 只有 `DEFAULT CURRENT_TIMESTAMP`，**没有 `ON UPDATE CURRENT_TIMESTAMP`**，更新时间由 MyBatis-Flex 字段填充写入。
+- **树形结构**：`menu.pid`、`comment.pid` 自关联，`0` 表示根节点。
+- **冗余快照**：`order_detail` / `cart` / `seckill_detail` 冗余课程标题、封面与单价，`comment` / `follow` / `report` 冗余用户昵称头像——既避免跨库 join，也保留下单/评论时点的快照。
+- **金额**：统一 `decimal(8,2)`，单位元。
+- **索引**：除主键外仅 `ml_oms.order` 上有唯一索引 `uk_order_sn`，作为秒杀链路 MQ 重投的最终幂等保障（已合入 `ml_oms.sql`，存量库执行增量脚本 [`20260723_order_sn_unique.sql`](document/sql/20260723_order_sn_unique.sql)）。
+
+> 📌 脚本由线上实例 `SHOW CREATE TABLE` 反向导出，只建表、不含 `DROP`、不含初始数据。运营后台的 RBAC 需要 `menu` / `role` / `role_menu` / `user_role` 有种子数据才能登录并渲染动态菜单，请自行准备。详见 [document/sql/README.md](document/sql/README.md)。
 
 ---
 
@@ -288,7 +298,22 @@ docker compose -f docker-compose.rocketmq.yml up -d
 
 其余中间件按常规方式部署，详见 [document/rocketmq-容器部署.md](document/rocketmq-容器部署.md)。
 
-### 2. 配置 Nacos
+### 2. 初始化数据库
+
+四个库之间没有物理外键，执行顺序任意：
+
+```bash
+cd document/sql
+mysql -u root -p < ml_ums.sql
+mysql -u root -p < ml_cms.sql
+mysql -u root -p < ml_oms.sql
+mysql -u root -p < ml_sms.sql
+```
+
+脚本使用 `CREATE DATABASE / TABLE IF NOT EXISTS`，不含 `DROP`，重复执行不会破坏已有数据。
+脚本只建表不含初始数据，运营后台登录与动态菜单依赖 `menu` / `role` / `role_menu` / `user_role` 的种子数据，需自行准备。详见 [document/sql/README.md](document/sql/README.md)。
+
+### 3. 配置 Nacos
 
 各服务的 `bootstrap.yaml` 只声明了 Nacos 地址与分组，**业务配置全部集中在配置中心**：
 
@@ -351,7 +376,7 @@ spring:
 
 > 支付宝当面付需另行配置 appId、应用私钥与支付宝公钥（见 `ml-order` 的 `AlipayUtil`），本地调试建议使用沙箱环境。
 
-### 3. 编译并启动后端
+### 4. 编译并启动后端
 
 ```bash
 # 根目录编译全部模块
@@ -368,7 +393,7 @@ ml-barrage    # 24106，WebSocket
 
 各服务接口文档：`http://{服务地址}/doc.html`（Knife4j）。
 
-### 4. 启动运营后台
+### 5. 启动运营后台
 
 ```bash
 cd ml-web
@@ -383,7 +408,7 @@ VITE_API_BASE_URL=http://localhost:24101
 VITE_API_PROXY=http://localhost:24101
 ```
 
-### 5. 运行学员端小程序
+### 6. 运行学员端小程序
 
 1. 用微信开发者工具导入 `ml-miniapp` 目录；
 2. 修改 `ml-miniapp/utils/const.js` 中的 `HOST` / `LINUX_HOST` 为实际网关与 MinIO 地址（同时决定 `GATEWAY_HOST`、`SOCKET_SERVER`、`MINIO_HOST`）；
@@ -470,6 +495,7 @@ node compare-reports.mjs             # 对比多轮压测报告
 ├── docs/
 │   └── seckill-concurrency.md    # 秒杀高并发方案
 ├── document/                 # 部署与运维文档
+│   └── sql/                  # 四个库的建表脚本 + 增量变更脚本
 ├── docker/                   # RocketMQ Broker 配置
 ├── scripts/
 │   ├── seckill-loadtest/     # 秒杀压测（Node + JMeter）
@@ -511,7 +537,7 @@ node compare-reports.mjs             # 对比多轮压测报告
 
 坦诚列出当前状态，也是后续迭代方向：
 
-- [ ] **补充建表 SQL**：仓库暂无 `docs/sql/` 初始化脚本，克隆后需依据实体类自行建库建表。
+- [x] ~~**补充建表 SQL**~~：已补充，见 [`document/sql/`](document/sql/)（仅建表，尚无种子数据脚本）。
 - [ ] **测试覆盖**：目前仅 2 个单测集中在秒杀链路，Service 层整体缺少测试。
 - [ ] **服务侧鉴权加固**：鉴权集中在网关，微服务端口若直接暴露可被绕过，生产环境需网络隔离或服务间调用签名。
 - [ ] **配置外部化**：`bootstrap.yaml` 与小程序 `const.js` 中的地址仍为开发环境硬编码，建议改为环境变量 / 多环境配置。

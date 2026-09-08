@@ -1,33 +1,35 @@
-@import "../../../app.scss";
+@import "../../../styles/theme.scss";
 
 .register-board {
-  padding: 20rpx;
+  padding: 24rpx;
 
   .field {
-    margin: 16rpx auto;
-    border-radius: 15rpx;
-    background-color: $bg-gray;
-    border: 3rpx solid $black;
-    color: $white;
+    margin: 12rpx auto;
+    border-radius: 16rpx;
+    background-color: $surface;
+    border: 1rpx solid $border;
+    color: $text-primary;
     text-align: left;
+    box-shadow: 0 2rpx 8rpx $shadow;
   }
 
   .van-field__label {
-    color: $yellow;
+    color: $text-primary;
+    font-weight: 500;
   }
 
   .van-field__control {
-    color: $white;
+    color: $text-primary;
   }
 
   .reg-btn {
-    margin-top: 30rpx;
-    border-radius: 15rpx;
+    margin-top: 24rpx;
+    border-radius: 44rpx;
   }
 
   .link {
     font-size: 28rpx;
     margin: 24rpx 10rpx;
-    color: $gray;
+    color: $text-secondary;
   }
 }

@@ -6,7 +6,7 @@ import pymysql
 from PIL import Image, ImageDraw, ImageFont
 
 
-ROOT = Path(r"C:\Users\xiaoyuzi\Desktop\文件\my-lesson图片")
+ROOT = Path(__file__).resolve().parent / "generated-images"
 DIRS = {
     "banner": ROOT / "banner",
     "course": ROOT / "course-cover",
@@ -20,6 +20,7 @@ DB_CONFIG = {
     "password": "123456",
     "charset": "utf8mb4",
     "cursorclass": pymysql.cursors.DictCursor,
+    "connect_timeout": 10,
 }
 
 FONT_CANDIDATES = [
@@ -29,15 +30,16 @@ FONT_CANDIDATES = [
     r"C:\Windows\Fonts\simsun.ttc",
 ]
 
+# Light theme palettes: (bg_start, bg_end, accent, text)
 PALETTES = [
-    ("#0F172A", "#2563EB", "#38BDF8", "#F8FAFC"),
-    ("#111827", "#7C3AED", "#C084FC", "#F9FAFB"),
-    ("#052E16", "#16A34A", "#4ADE80", "#F0FDF4"),
-    ("#3F0D12", "#E11D48", "#FB7185", "#FFF1F2"),
-    ("#1E1B4B", "#4F46E5", "#818CF8", "#EEF2FF"),
-    ("#3B0764", "#9333EA", "#D8B4FE", "#FAF5FF"),
-    ("#082F49", "#0284C7", "#7DD3FC", "#F0F9FF"),
-    ("#422006", "#F59E0B", "#FCD34D", "#FFFBEB"),
+    ("#EFF6FF", "#DBEAFE", "#2563EB", "#1E3A8A"),
+    ("#F0FDF4", "#DCFCE7", "#16A34A", "#14532D"),
+    ("#FFF7ED", "#FFEDD5", "#EA580C", "#7C2D12"),
+    ("#FDF4FF", "#FAE8FF", "#9333EA", "#581C87"),
+    ("#F0F9FF", "#E0F2FE", "#0284C7", "#0C4A6E"),
+    ("#FFF1F2", "#FFE4E6", "#E11D48", "#881337"),
+    ("#FFFBEB", "#FEF3C7", "#D97706", "#78350F"),
+    ("#F5F3FF", "#EDE9FE", "#7C3AED", "#4C1D95"),
 ]
 
 
@@ -46,7 +48,7 @@ def ensure_dirs():
         path.mkdir(parents=True, exist_ok=True)
 
 
-def get_font(size: int, bold: bool = False):
+def get_font(size: int):
     for candidate in FONT_CANDIDATES:
         if Path(candidate).exists():
             return ImageFont.truetype(candidate, size=size)
@@ -55,6 +57,14 @@ def get_font(size: int, bold: bool = False):
 
 def get_palette(seed: int):
     return PALETTES[seed % len(PALETTES)]
+
+
+def hex_rgba(hex_color: str, alpha: int = 255):
+    hex_color = hex_color.lstrip("#")
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return (r, g, b, alpha)
 
 
 def gradient_image(size, start_hex, end_hex, horizontal=False):
@@ -93,24 +103,24 @@ def create_banner_image(row):
     img = gradient_image((1600, 600), palette[0], palette[1], horizontal=True)
     draw = ImageDraw.Draw(img, "RGBA")
 
-    draw.rounded_rectangle((80, 70, 900, 150), radius=20, fill=(255, 255, 255, 25))
-    draw.rounded_rectangle((80, 170, 1180, 470), radius=26, fill=(0, 0, 0, 50))
-    draw.ellipse((1130, -100, 1640, 410), fill=(255, 255, 255, 40))
-    draw.ellipse((1040, 240, 1450, 650), fill=(255, 255, 255, 28))
-    draw.rectangle((100, 505, 360, 518), fill=palette[2])
+    draw.rounded_rectangle((80, 70, 420, 130), radius=20, fill=hex_rgba(palette[2], 48))
+    draw.rounded_rectangle((80, 160, 1100, 480), radius=28, fill=(255, 255, 255, 200))
+    draw.ellipse((1200, -60, 1580, 320), fill=hex_rgba(palette[2], 30))
+    draw.rectangle((100, 500, 340, 512), fill=palette[2])
 
-    title_font = get_font(36)
-    hero_font = get_font(66)
-    body_font = get_font(24)
+    badge_font = get_font(28)
+    title_font = get_font(58)
+    body_font = get_font(26)
 
     raw_info = (row["info"] or "").replace("《", "").replace("》", "")
     headline = raw_info[:16] if raw_info else f"Banner {row['id']}"
     desc = raw_info[:80] if raw_info else "MyLesson 推荐内容"
 
-    draw.text((100, 88), "MyLesson 精选推荐", font=title_font, fill="#FFFFFF")
-    draw.text((100, 195), headline, font=hero_font, fill="#FFFFFF")
-    draw_text_block(draw, wrap_cn(desc, 24, 4), 102, 305, body_font, "#E5F3FF", 16)
-    draw.text((1200, 468), "立即查看", font=title_font, fill="#FFFFFF")
+    draw.text((100, 82), "MyLesson 精选推荐", font=badge_font, fill=palette[2])
+    draw.text((100, 185), headline, font=title_font, fill=palette[3])
+    draw_text_block(draw, wrap_cn(desc, 26, 4), 102, 295, body_font, "#475569", 18)
+    draw.rounded_rectangle((1020, 420, 1180, 490), radius=24, fill=palette[2])
+    draw.text((1050, 438), "立即查看", font=badge_font, fill="#FFFFFF")
 
     img.save(DIRS["banner"] / f"banner-{row['id']}.png")
 
@@ -120,19 +130,18 @@ def create_course_image(row):
     img = gradient_image((800, 1000), palette[0], palette[1])
     draw = ImageDraw.Draw(img, "RGBA")
 
-    draw.ellipse((460, -80, 790, 250), fill=(255, 255, 255, 24))
-    draw.rounded_rectangle((60, 120, 320, 176), radius=18, fill=(255, 255, 255, 35))
-    draw.rounded_rectangle((60, 220, 740, 780), radius=28, fill=(0, 0, 0, 58))
-    draw.rectangle((60, 820, 205, 834), fill=palette[2])
+    draw.rounded_rectangle((50, 50, 750, 950), radius=32, fill=(255, 255, 255, 210))
+    draw.rounded_rectangle((80, 100, 260, 150), radius=16, fill=hex_rgba(palette[2], 40))
+    draw.rectangle((80, 860, 220, 872), fill=palette[2])
 
-    small_font = get_font(22)
-    title_font = get_font(50)
-    foot_font = get_font(26)
+    badge_font = get_font(24)
+    title_font = get_font(46)
+    foot_font = get_font(24)
 
-    draw.text((84, 132), "精品课程", font=small_font, fill="#FFFFFF")
-    draw_text_block(draw, wrap_cn(row["title"], 9, 5), 82, 280, title_font, "#FFFFFF", 34)
-    draw.text((82, 884), "MyLesson", font=foot_font, fill="#E5E7EB")
-    draw.text((82, 924), "实战课程 / 系统学习 / 随学随练", font=foot_font, fill="#E5E7EB")
+    draw.text((96, 108), "精品课程", font=badge_font, fill=palette[2])
+    draw_text_block(draw, wrap_cn(row["title"], 9, 5), 82, 260, title_font, palette[3], 32)
+    draw.text((82, 890), "MyLesson", font=foot_font, fill="#64748B")
+    draw.text((82, 928), "实战课程 / 系统学习 / 随学随练", font=foot_font, fill="#94A3B8")
 
     img.save(DIRS["course"] / f"course-{row['id']}.png")
 
@@ -142,37 +151,37 @@ def create_episode_image(row):
     img = gradient_image((1280, 720), palette[0], palette[1], horizontal=True)
     draw = ImageDraw.Draw(img, "RGBA")
 
-    draw.ellipse((850, -70, 1260, 340), fill=(255, 255, 255, 28))
-    draw.rounded_rectangle((70, 110, 900, 530), radius=26, fill=(0, 0, 0, 72))
-    draw.rectangle((70, 580, 300, 594), fill=palette[2])
-    draw.polygon([(980, 220), (980, 420), (1140, 320)], fill="#FFFFFF")
+    draw.rounded_rectangle((60, 80, 880, 560), radius=28, fill=(255, 255, 255, 215))
+    draw.ellipse((920, -40, 1260, 300), fill=hex_rgba(palette[2], 24))
+    draw.rectangle((80, 590, 280, 602), fill=palette[2])
+    draw.polygon([(960, 240), (960, 400), (1100, 320)], fill=palette[2])
 
     badge_font = get_font(26)
-    title_font = get_font(42)
+    title_font = get_font(40)
     desc_font = get_font(24)
 
-    draw.text((96, 140), "精品视频", font=badge_font, fill="#FFFFFF")
-    draw_text_block(draw, wrap_cn(row["title"], 14, 4), 96, 220, title_font, "#FFFFFF", 24)
-    draw.text((96, 620), "MyLesson 课程片段预览", font=desc_font, fill="#E2E8F0")
+    draw.text((88, 110), "精品视频", font=badge_font, fill=palette[2])
+    draw_text_block(draw, wrap_cn(row["title"], 14, 4), 88, 200, title_font, palette[3], 22)
+    draw.text((88, 620), "MyLesson 课程片段预览", font=desc_font, fill="#64748B")
 
     img.save(DIRS["episode"] / f"episode-{row['id']}.png")
 
 
 def create_avatar_image(row):
     palette = get_palette(row["id"])
-    img = gradient_image((512, 512), palette[1], palette[2])
+    img = gradient_image((512, 512), palette[0], palette[1])
     draw = ImageDraw.Draw(img, "RGBA")
 
-    draw.ellipse((0, 0, 512, 512), fill=None, outline=None)
-    draw.ellipse((70, 70, 442, 442), fill=(255, 255, 255, 35))
-    draw.rounded_rectangle((110, 330, 402, 410), radius=18, fill=(0, 0, 0, 36))
+    draw.ellipse((56, 56, 456, 456), fill=(255, 255, 255, 180))
+    draw.ellipse((140, 120, 372, 340), fill=hex_rgba(palette[2], 32))
+    draw.rounded_rectangle((130, 340, 382, 410), radius=20, fill=hex_rgba(palette[2], 48))
 
-    label_font = get_font(28)
-    title_font = get_font(64)
+    label_font = get_font(26)
+    title_font = get_font(56)
 
-    draw.text((175, 116), "ADMIN", font=label_font, fill="#FFFFFF")
-    mark = f"A{row['id']}"
-    draw.text((170, 220), mark, font=title_font, fill="#FFFFFF")
+    nickname = (row.get("nickname") or row.get("username") or "U")[:1].upper()
+    draw.text((200, 200), nickname, font=title_font, fill=palette[3])
+    draw.text((168, 360), "MyLesson", font=label_font, fill=palette[2])
 
     img.save(DIRS["avatar"] / f"user-{row['id']}.png")
 

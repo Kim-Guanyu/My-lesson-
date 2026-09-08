@@ -4,12 +4,15 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "postinstall": "python scripts/patch-vant-icon-font.py",
+    "patch:icons": "python scripts/patch-vant-icon-font.py",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vant/icons": "^3.0.2",
     "@vant/weapp": "^1.11.7"
   }
 }

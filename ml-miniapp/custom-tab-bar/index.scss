@@ -1,3 +1,13 @@
+@import "../styles/theme.scss";
+
 .tab-bar-wrap {
   padding-bottom: env(safe-area-inset-bottom);
+
+  .van-tabbar {
+    border-top: 1rpx solid $border;
+  }
+
+  .van-tabbar-item__icon {
+    margin-bottom: 4rpx;
+  }
 }

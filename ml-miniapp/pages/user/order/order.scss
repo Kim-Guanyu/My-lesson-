@@ -1,12 +1,14 @@
-@import "../../../app.scss";
+@import "../../../styles/theme.scss";
 
 .login-tip {
   padding-top: 120rpx;
   text-align: center;
+  color: $text-secondary;
 
   .login-btn {
     width: 300rpx;
     margin-top: 40rpx;
+    border-radius: 44rpx;
   }
 }
 
@@ -14,6 +16,20 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
+
+  .van-tabs__nav {
+    background: $surface !important;
+    box-shadow: 0 2rpx 8rpx $shadow;
+  }
+
+  .van-tab {
+    color: $text-secondary !important;
+  }
+
+  .van-tab--active {
+    color: $primary !important;
+    font-weight: 600;
+  }
 }
 
 .order-list {
@@ -23,12 +39,13 @@
 }
 
 .order-card {
-  background: $bg-gray;
-  border: 1rpx solid $black;
-  border-radius: 15rpx;
+  background: $surface;
+  border: 1rpx solid $border;
+  border-radius: 16rpx;
   padding: 24rpx;
   margin-bottom: 20rpx;
-  color: $yellow;
+  color: $text-primary;
+  box-shadow: 0 2rpx 12rpx $shadow;
 }
 
 .order-head {
@@ -49,7 +66,7 @@
 
 .order-sn {
   font-size: 22rpx;
-  color: $white;
+  color: $text-secondary;
   word-break: break-all;
 }
 
@@ -60,7 +77,7 @@
   font-size: 26rpx;
   margin-top: 16rpx;
   padding-top: 16rpx;
-  border-top: 1rpx dashed $subBlack;
+  border-top: 1rpx dashed $border;
 }
 
 .amount-row {
@@ -72,7 +89,7 @@
 }
 
 .pay-amount {
-  color: $orange;
+  color: $price;
   font-size: 32rpx;
   font-weight: bold;
 }
@@ -94,7 +111,8 @@
 
 .detail-title {
   font-size: 28rpx;
-  color: $yellow;
+  color: $text-primary;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -102,7 +120,7 @@
 
 .detail-price {
   font-size: 24rpx;
-  color: $white;
+  color: $text-secondary;
 }
 
 .order-foot {
@@ -113,7 +131,7 @@
 .loading-tip {
   text-align: center;
   padding: 30rpx;
-  color: $white;
+  color: $text-secondary;
   font-size: 26rpx;
 }
 
@@ -124,22 +142,24 @@
 
   .pay-countdown .title {
     margin-bottom: 20rpx;
+    color: $text-primary;
   }
 
   .item {
     display: inline-block;
     width: 60rpx;
     margin-right: 10rpx;
-    color: $white;
+    color: #ffffff;
     font-weight: bold;
     text-align: center;
-    background-color: $black;
-    border-radius: 5rpx;
+    background-color: $primary;
+    border-radius: 8rpx;
   }
 
   .pay-dialog-label {
-    color: $orange;
+    color: $text-primary;
     text-align: center;
     margin: 40rpx 0;
+    font-weight: 600;
   }
 }

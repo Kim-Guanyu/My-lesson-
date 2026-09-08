@@ -1,5 +1,5 @@
 {
-  "gateway": "http://localhost:24101",
+  "gateway": "http://192.168.211.132:24101",
   "username": "loadtest001",
   "password": "LoadTest123",
   "seckillId": 1,
@@ -10,5 +10,16 @@
   "concurrency": 50,
   "totalRequests": 200,
   "userIdStart": 3,
-  "prepareBeforeTest": true
+  "prepareBeforeTest": true,
+  "mysql": {
+    "host": "192.168.211.132",
+    "port": 3306,
+    "user": "root",
+    "password": "123456"
+  },
+  "redis": {
+    "host": "192.168.211.132",
+    "port": 6379,
+    "password": "123456"
+  }
 }

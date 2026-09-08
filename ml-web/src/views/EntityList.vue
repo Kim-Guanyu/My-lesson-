@@ -1,3 +1,4 @@
+    columns.value = rows.value.length ? Object.keys(rows.value[0]) : [];
 <template>
   <div class="page-card">
     <div class="page-toolbar">
@@ -121,8 +122,8 @@ const listPath = computed(() => route.meta?.listPath || "page");
 const createPath = computed(() => route.meta?.createPath || "insert");
 const updatePath = computed(() => route.meta?.updatePath || "update");
 const deletePath = computed(() => route.meta?.deletePath || "delete");
-const deleteBatchPath = computed(() => route.meta?.deleteBatchPath ?? "");
 const MINIO_BASE_URL = (import.meta.env.VITE_MINIO_BASE_URL || "http://192.168.211.132:9000/my-lesson").replace(/\/$/, "");
+const MINIO_BASE_URL = (import.meta.env.VITE_MINIO_BASE_URL || "http://192.168.211.132:9001/my-lesson").replace(/\/$/, "");
 const MINIO_BASE_URL_LEGACY = MINIO_BASE_URL.replace(/\/my-lesson$/, "/mylesson");
 
 const loading = ref(false);
@@ -197,13 +198,13 @@ const resolveColumnMinWidth = (column) => {
   }
   return 120;
 };
-
 const filterColumns = (cols) => {
   if (route.path === "/courses") {
     return cols.filter((col) => col !== "summary");
   }
   return cols;
 };
+
 
 const resolveImageUrl = (column, row) => {
   const value = row?.[column];
@@ -319,9 +320,9 @@ const loadData = async () => {
     }
     const data = await http.get(`${apiBase.value}/${listPath.value}`, { params });
     rows.value = extractRows(data);
-    totalRows.value = extractTotal(data) || rows.value.length;
     const rawColumns = rows.value.length ? Object.keys(rows.value[0]) : [];
     columns.value = filterColumns(rawColumns);
+    columns.value = rows.value.length ? Object.keys(rows.value[0]) : [];
   } finally {
     loading.value = false;
   }

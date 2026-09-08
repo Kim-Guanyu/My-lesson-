@@ -1,5 +1,5 @@
 {
-  "gateway": "http://localhost:24101",
+  "gateway": "http://192.168.211.132:24101",
   "username": "your_username",
   "password": "your_password",
   "seckillId": 1,

@@ -1,33 +1,36 @@
-@import "../../../app.scss";
+@import "../../../styles/theme.scss";
 
 .login-by-phone-board {
-  padding: 20rpx;
+  padding: 24rpx;
 
   .field {
-    margin: 20rpx auto;
-    border-radius: 15rpx;
-    background-color: $bg-gray;
-    border: 3rpx solid $black;
-    color: $white;
+    margin: 16rpx auto;
+    border-radius: 16rpx;
+    background-color: $surface;
+    border: 1rpx solid $border;
+    color: $text-primary;
     text-align: left;
+    box-shadow: 0 2rpx 8rpx $shadow;
   }
 
   .van-field__label {
-    color: $yellow;
+    color: $text-primary;
+    font-weight: 500;
   }
 
   .van-field__control {
-    color: $white;
+    color: $text-primary;
   }
 
   .login-btn {
-    font-size: large;
-    border-radius: 15rpx;
+    font-size: 32rpx;
+    border-radius: 44rpx;
+    margin-top: 16rpx;
   }
 
   .link {
-    font-size: 30rpx;
-    margin: 20rpx;
-    color: $gray;
+    font-size: 28rpx;
+    margin: 24rpx;
+    color: $text-secondary;
   }
 }

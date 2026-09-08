@@ -7,8 +7,8 @@ from minio import Minio
 from minio.error import S3Error
 
 
-ROOT = Path(r"C:\Users\xiaoyuzi\Desktop\文件\my-lesson图片")
-BUCKET = "mylesson"
+ROOT = Path(__file__).resolve().parent / "generated-images"
+BUCKET = "my-lesson"
 MINIO_ENDPOINTS = ["192.168.211.132:9000", "192.168.211.132:9001"]
 MINIO_USER = "minioadmin"
 MINIO_PASSWORD = "minioadmin"
@@ -64,6 +64,9 @@ def ensure_bucket_ready(client: Minio):
 
 def upload_dir(client: Minio, local_dir: Path, object_dir: str):
     uploaded = 0
+    if not local_dir.exists():
+        print(f"skip missing dir: {local_dir}")
+        return uploaded
     for file_path in sorted(local_dir.glob("*")):
         if not file_path.is_file():
             continue
@@ -72,6 +75,7 @@ def upload_dir(client: Minio, local_dir: Path, object_dir: str):
         client.fput_object(BUCKET, object_name, str(file_path), content_type=content_type)
         uploaded += 1
     print(f"uploaded {object_dir}: {uploaded}")
+    return uploaded
 
 
 def update_tables():

@@ -1,5 +1,5 @@
 {
-  "gateway": "http://localhost:24101",
+  "gateway": "http://192.168.211.132:24101",
   "password": "LoadTest123",
   "seckillId": 1,
   "courseId": 1,

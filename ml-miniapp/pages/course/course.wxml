@@ -1,5 +1,5 @@
 <van-sticky>
-  <van-search class="search-ipt" value="{{keyword}}" bind:search="searchByKeyword" bind:clear="cancelSearch" background="#252a34" shape="round" clear-trigger="always" input-align="center" placeholder="请输入课程标题进行搜索"/>
+  <van-search class="search-ipt" value="{{keyword}}" bind:search="searchByKeyword" bind:clear="cancelSearch" background="#f5f7fa" shape="round" clear-trigger="always" input-align="center" placeholder="请输入课程标题进行搜索"/>
 </van-sticky>
 
 <scroll-view class="course-list" bindscrolltolower="onListEnd" scroll-y="true">

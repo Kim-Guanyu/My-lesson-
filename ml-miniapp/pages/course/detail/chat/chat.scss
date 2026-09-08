@@ -1,10 +1,10 @@
-@import "../../../../app.scss";
+@import "../../../../styles/theme.scss";
 
 .chat-page {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: $bg-gray;
+  background: $page-bg;
 }
 
 .chat-body {
@@ -27,26 +27,28 @@
   }
 
   .bubble {
-    background: $yellow;
-    color: $black;
+    background: $primary;
+    color: #ffffff;
   }
 
   .avatar {
     margin-left: 16rpx;
     margin-right: 0;
-    background: $orange;
+    background: $primary-light;
+    color: $primary;
   }
 }
 
 .msg-bot {
   .bubble {
-    background: $black;
-    color: $white;
+    background: $surface;
+    color: $text-primary;
+    box-shadow: 0 2rpx 8rpx $shadow;
   }
 
   .avatar {
-    background: $subBlack;
-    color: $yellow;
+    background: $primary-light;
+    color: $primary;
   }
 }
 
@@ -59,6 +61,7 @@
   font-size: 24rpx;
   margin-right: 16rpx;
   flex-shrink: 0;
+  font-weight: 600;
 }
 
 .bubble-wrap {
@@ -77,19 +80,20 @@
 }
 
 .typing {
-  color: $gray;
+  color: $text-muted;
 }
 
 .time {
   margin-top: 8rpx;
   font-size: 22rpx;
-  color: $gray;
+  color: $text-muted;
 }
 
 .faq-bar {
   flex-shrink: 0;
   padding: 12rpx 0 12rpx 20rpx;
-  border-top: 1rpx solid $subBlack;
+  border-top: 1rpx solid $border;
+  background: $surface;
 }
 
 .faq-scroll {
@@ -100,8 +104,8 @@
   display: inline-block;
   margin-right: 16rpx;
   padding: 12rpx 24rpx;
-  background: $black;
-  color: $yellow;
+  background: $primary-light;
+  color: $primary;
   border-radius: 999rpx;
   font-size: 24rpx;
 }
@@ -112,16 +116,17 @@
   align-items: center;
   gap: 16rpx;
   padding: 16rpx 20rpx calc(16rpx + env(safe-area-inset-bottom));
-  background: $bg-gray;
-  border-top: 1rpx solid $subBlack;
+  background: $surface;
+  border-top: 1rpx solid $border;
 }
 
 .chat-input {
   flex: 1;
   height: 72rpx;
   padding: 0 24rpx;
-  background: $black;
-  color: $white;
+  background: $page-bg;
+  color: $text-primary;
+  border: 1rpx solid $border;
   border-radius: 36rpx;
   font-size: 28rpx;
 }

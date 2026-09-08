@@ -1,0 +1,20 @@
+/* ===== Light theme variables（供各页面 scss 引用） ===== */
+$page-bg: #f5f7fa;
+$surface: #ffffff;
+$text-primary: #1f2937;
+$text-secondary: #6b7280;
+$text-muted: #9ca3af;
+$primary: #2563eb;
+$primary-light: #eff6ff;
+$price: #ef4444;
+$border: #e5e7eb;
+$shadow: rgba(15, 23, 42, 0.06);
+
+/* Legacy aliases — keep page scss imports working */
+$bg-gray: $page-bg;
+$black: $surface;
+$white: $text-primary;
+$yellow: $primary;
+$orange: $price;
+$gray: $text-secondary;
+$subBlack: $border;

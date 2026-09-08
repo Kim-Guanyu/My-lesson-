@@ -1,0 +1,23 @@
+# 智能客服 Spring AI 配置示例
+# 将以下内容合并到 Nacos 的 ml-sale-dev.yaml（或对应环境配置）
+
+customer-service:
+  ai:
+    enabled: true          # 开启 Spring AI 大模型回复
+    fallback-to-rules: true # 模型失败时回退关键词规则
+    temperature: 0.3
+    max-tokens: 512
+
+spring:
+  ai:
+    openai:
+      # 必填：API Key（建议用环境变量，不要提交到 Git）
+      api-key: ${OPENAI_API_KEY:your-api-key-here}
+      # OpenAI 官方默认：https://api.openai.com
+      # DeepSeek 示例：https://api.deepseek.com
+      # 阿里云百炼 OpenAI 兼容：https://dashscope.aliyuncs.com/compatible-mode/v1
+      base-url: ${OPENAI_BASE_URL:https://api.deepseek.com}
+      chat:
+        options:
+          model: ${OPENAI_MODEL:deepseek-chat}
+          temperature: 0.3

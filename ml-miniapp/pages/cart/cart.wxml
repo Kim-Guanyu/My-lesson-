@@ -1,5 +1,5 @@
 <view class="search-coupons">
-  <van-search class="search-coupons-ipt" value="{{couponsCode}}" bind:change="onCouponsCodeChange" bind:search="getCoupons" background="#252a34" shape="round" clear-trigger="always" input-align="center" placeholder="请输入口令兑换优惠卷"/>
+  <van-search class="search-coupons-ipt" value="{{couponsCode}}" bind:change="onCouponsCodeChange" bind:search="getCoupons" background="#f5f7fa" shape="round" clear-trigger="always" input-align="center" placeholder="请输入口令兑换优惠卷"/>
 </view>
 
 <scroll-view class="cart-list" wx:if="{{carts && carts.length > 0}}" bindscrolltolower="pageMore" scroll-y="true">

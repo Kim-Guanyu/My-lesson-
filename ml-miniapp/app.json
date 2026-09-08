@@ -24,15 +24,16 @@
     "pages/user/update-info/update-info"
   ],
   "window": {
-    "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "我的课堂小程序",
-    "navigationBarBackgroundColor": "#252a34"
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "我的课堂",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f7fa"
   },
   "tabBar": {
     "custom": true,
-    "color": "#757171",
-    "selectedColor": "#f9ed69",
-    "backgroundColor": "#252a34",
+    "color": "#9ca3af",
+    "selectedColor": "#2563eb",
+    "backgroundColor": "#ffffff",
     "list": [
       {"pagePath": "pages/index/index", "text": "首页"},
       {"pagePath": "pages/course/course", "text": "课程"},
