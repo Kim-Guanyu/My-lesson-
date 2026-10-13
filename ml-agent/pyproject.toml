@@ -1,0 +1,51 @@
+[project]
+name = "ml-agent"
+version = "0.1.0"
+description = "知堂课堂 - 悬浮小精灵 AI 智能体服务（LangGraph + FastAPI + RAG）"
+readme = "README.md"
+# 与参考教程保持一致：推荐 3.12，支持 3.10-3.13
+# 3.14 下 chromadb / langchain-redis 等尚未完全兼容，故上限为 3.13
+requires-python = ">=3.10,<3.14"
+
+dependencies = [
+    # ---------- 智能体核心框架 ----------
+    "langchain>=1.3,<2",
+    "langchain-core>=1.4,<2",
+    "langgraph>=1.2,<2",
+    # DeepSeek 走 OpenAI 兼容协议，由 init_chat_model(model_provider="openai") 接入
+    "langchain-openai>=1.3,<2",
+
+    # ---------- RAG：文本分割 / 向量库 / Embedding ----------
+    "langchain-community>=0.4,<1",
+    "langchain-text-splitters>=1.1,<2",
+    "langchain-chroma>=0.2,<1",
+    # 百炼 text-embedding-v3 由 DashScopeEmbeddings 调用，需要 dashscope SDK
+    "dashscope>=1.26",
+
+    # ---------- Web 服务 ----------
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.3",
+
+    # ---------- 基础设施客户端 ----------
+    # httpx：回调 Java 网关；redis：解析登录令牌拿真实身份
+    "httpx>=0.27",
+    "redis>=5.3,<6",
+
+    # ---------- 配置与日志 ----------
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+    "loguru>=0.7",
+]
+
+[project.optional-dependencies]
+# 知识库里要放 pdf / docx 时才需要，纯 md / txt 不用装
+docs = [
+    "pypdf>=4.0",
+    "docx2txt>=0.8",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312", "py313"]

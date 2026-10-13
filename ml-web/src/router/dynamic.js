@@ -1,9 +1,16 @@
 import Dashboard from "../views/Dashboard.vue";
-import EntityList from "../views/EntityList.vue";
-import { normalizePath, buildMenuTree } from "../utils/menu";
+import NoticeManage from "../views/NoticeManage.vue";
+import BannerManage from "../views/BannerManage.vue";
+import SeckillManage from "../views/SeckillManage.vue";
 import { ROLE_GROUPS } from "../utils/permissions";
-import { menuGroups, menuRouteMeta } from "./menu";
 
+/**
+ * 运营后台只有三个功能页，路由直接写死，不再依赖后端 menu 表。
+ *
+ * 原先走后端动态菜单，但 menu 表的 url 是 /Notice 这类大写单数形式，
+ * 与前端路由 /notices 对不上，且 Menu 实体没有 apiBase 字段，
+ * 导致页面渲染出来却拉不到数据。
+ */
 const routes = [
   {
     path: "/dashboard",
@@ -12,78 +19,41 @@ const routes = [
     meta: {
       title: "仪表盘",
       icon: "DataAnalysis",
-      roles: [ROLE_GROUPS.user, ROLE_GROUPS.course, ROLE_GROUPS.marketing, ROLE_GROUPS.order].flat()
+      roles: ROLE_GROUPS.marketing
+    }
+  },
+  {
+    path: "/notices",
+    name: "NoticeManage",
+    component: NoticeManage,
+    meta: {
+      title: "公告",
+      icon: "Bell",
+      roles: ROLE_GROUPS.marketing
+    }
+  },
+  {
+    path: "/banners",
+    name: "BannerManage",
+    component: BannerManage,
+    meta: {
+      title: "轮播图",
+      icon: "Picture",
+      roles: ROLE_GROUPS.marketing
+    }
+  },
+  {
+    path: "/seckills",
+    name: "SeckillManage",
+    component: SeckillManage,
+    meta: {
+      title: "秒杀活动",
+      icon: "Stopwatch",
+      roles: ROLE_GROUPS.marketing
     }
   }
-  // ...other static routes can be added here
 ];
 
-const mapMenuToRoute = (menu) => {
-  const path = normalizePath(menu.url || menu.path || menu.menuUrl || "");
-  if (!path) {
-    return null;
-  }
-  const isDashboard = path === "/dashboard" || path === "/";
-  return {
-    path: isDashboard ? "/dashboard" : path,
-    name: menu.name || menu.title || `menu-${menu.id}`,
-    component: isDashboard ? Dashboard : EntityList,
-    meta: {
-      title: menu.title || menu.name || "菜单",
-      icon: menu.icon || "Menu",
-      roles: menu.roles || menu.roleNames || [],
-      apiBase: menu.apiBase || menu.api || menu.baseUrl || "",
-      listPath: menu.listPath || "page",
-      createPath: menu.createPath || "insert",
-      updatePath: menu.updatePath || "update",
-      deletePath: menu.deletePath || "delete",
-      deleteBatchPath: menu.deleteBatchPath || ""
-    }
-  };
-};
-
-const flattenMenus = (menus = []) => {
-  const tree = buildMenuTree(menus);
-  const result = [];
-  const visit = (items) => {
-    items.forEach((item) => {
-      const route = mapMenuToRoute(item);
-      if (route) {
-        result.push(route);
-      }
-      if (item.children?.length) {
-        visit(item.children);
-      }
-    });
-  };
-  visit(tree);
-  return result;
-};
-
-const buildStaticRoutes = () => {
-  const routes = [];
-  menuGroups.forEach((group) => {
-    (group.items || []).forEach((item) => {
-      routes.push({
-        path: item.path,
-        name: `static-${item.path.replace("/", "")}`,
-        component: EntityList,
-        meta: {
-          title: item.label,
-          icon: item.icon || "Menu",
-          apiBase: menuRouteMeta[item.path]?.apiBase || "",
-          listPath: menuRouteMeta[item.path]?.listPath || "page"
-        }
-      });
-    });
-  });
-  return routes;
-};
-
-export const buildDynamicRoutes = (menus = []) => {
-  const dynamic = menus.length ? flattenMenus(menus) : [];
-  const staticRoutes = dynamic.length ? [] : buildStaticRoutes();
-  return [...routes, ...dynamic, ...staticRoutes];
-};
+export const buildDynamicRoutes = () => routes;
 
 export default routes;

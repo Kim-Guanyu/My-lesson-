@@ -18,6 +18,7 @@ import com.mdkj.util.ResultCode;
 import com.mdkj.vo.PageVO;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryChain;
+import com.mybatisflex.core.query.QueryMethods;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.mdkj.entity.OrderDetail;
@@ -115,29 +116,92 @@ public class OrderDetailServiceImpl extends ServiceImpl<OrderDetailMapper, Order
     @Override
     public PageVO<OrderDetail> myCourses(MyCoursePageDTO dto) {
         Long fkUserId = dto.getFkUserId();
-        List<Long> paidOrderIds = QueryChain.of(orderMapper)
-                .select(ORDER.ID)
-                .where(ORDER.FK_USER_ID.eq(fkUserId))
-                .and(ORDER.STATUS.eq(ML.Order.PAID))
-                .listAs(Long.class);
+        List<Long> paidOrderIds = paidOrderIds(fkUserId);
 
         PageVO<OrderDetail> pageVO = new PageVO<>();
         if (CollUtil.isEmpty(paidOrderIds)) {
-            pageVO.setPageNum((long) dto.getPageNum());
-            pageVO.setPageSize(dto.getPageSize());
-            pageVO.setTotalRow(0L);
-            pageVO.setTotalPage(0);
-            pageVO.setRecords(new ArrayList<>());
-            return pageVO;
+            return emptyPage(pageVO, dto);
+        }
+
+        // 同一门课可能散落在多张已付款订单里（历史重复下单遗留的脏数据），
+        // 先按课程分组取最早的那条明细，保证「我的课程」里一门课只出现一次。
+        // select min(id) from order_detail where fk_order_id in (?) group by fk_course_id
+        List<Long> distinctDetailIds = QueryChain.of(mapper)
+                .select(QueryMethods.min(ORDER_DETAIL.ID).as("id"))
+                .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
+                .groupBy(ORDER_DETAIL.FK_COURSE_ID)
+                .listAs(Long.class);
+        if (CollUtil.isEmpty(distinctDetailIds)) {
+            return emptyPage(pageVO, dto);
         }
 
         Page<OrderDetail> result = QueryChain.of(mapper)
-                .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
+                .where(ORDER_DETAIL.ID.in(distinctDetailIds))
                 .orderBy(ORDER_DETAIL.CREATED.desc())
                 .page(new Page<>(dto.getPageNum(), dto.getPageSize()));
 
         BeanUtil.copyProperties(result, pageVO);
         pageVO.setPageNum(result.getPageNumber());
+        return pageVO;
+    }
+
+    @Override
+    public boolean isPurchased(Long fkUserId, Long fkCourseId) {
+        if (ObjectUtil.hasNull(fkUserId, fkCourseId)) {
+            return false;
+        }
+        List<Long> paidOrderIds = paidOrderIds(fkUserId);
+        if (CollUtil.isEmpty(paidOrderIds)) {
+            return false;
+        }
+        // select count(*) from order_detail where fk_order_id in (?) and fk_course_id = ?
+        return QueryChain.of(mapper)
+                .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
+                .and(ORDER_DETAIL.FK_COURSE_ID.eq(fkCourseId))
+                .exists();
+    }
+
+    @Override
+    public List<Long> filterPurchased(Long fkUserId, List<Long> courseIds) {
+        if (ObjectUtil.isNull(fkUserId) || CollUtil.isEmpty(courseIds)) {
+            return new ArrayList<>();
+        }
+        List<Long> paidOrderIds = paidOrderIds(fkUserId);
+        if (CollUtil.isEmpty(paidOrderIds)) {
+            return new ArrayList<>();
+        }
+        // select fk_course_id from order_detail where fk_order_id in (?) and fk_course_id in (?)
+        return QueryChain.of(mapper)
+                .select(ORDER_DETAIL.FK_COURSE_ID)
+                .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
+                .and(ORDER_DETAIL.FK_COURSE_ID.in(courseIds))
+                .listAs(Long.class);
+    }
+
+    /**
+     * 查询用户全部已付款订单的主键，是「是否已购买」类判断的共同前置条件
+     *
+     * @param fkUserId 用户主键
+     * @return 已付款订单主键集合
+     */
+    private List<Long> paidOrderIds(Long fkUserId) {
+        // select id from `order` where fk_user_id = ? and status = 1
+        return QueryChain.of(orderMapper)
+                .select(ORDER.ID)
+                .where(ORDER.FK_USER_ID.eq(fkUserId))
+                .and(ORDER.STATUS.eq(ML.Order.PAID))
+                .listAs(Long.class);
+    }
+
+    /**
+     * 组装一个空的分页结果
+     */
+    private PageVO<OrderDetail> emptyPage(PageVO<OrderDetail> pageVO, MyCoursePageDTO dto) {
+        pageVO.setPageNum((long) dto.getPageNum());
+        pageVO.setPageSize(dto.getPageSize());
+        pageVO.setTotalRow(0L);
+        pageVO.setTotalPage(0);
+        pageVO.setRecords(new ArrayList<>());
         return pageVO;
     }
 

@@ -28,6 +28,13 @@ Page({
     videoReady: false,
     videoInstanceId: 0,
     payDialogShow: false,
+    // 是否已购买本课程：未购买只能试看一节，其余章节点击后提示购买
+    purchased: false,
+    // 未购买用户可试看的那一节（集次ID）与它的展示名，如「第二章第一节」
+    freeEpisodeId: null,
+    freeEpisodeLabel: '',
+    // 打开小精灵那一刻的播放进度快照（秒）
+    spriteCurrentTime: 0,
     time: 15 * 60 * 1000,
     timeData: {},
     countDownShow: false,
@@ -35,15 +42,24 @@ Page({
     sn: ''
   },
 
-  resolveBarrageIds(course, courseId) {
+  /**
+   * 定位起播集次的弹幕作用域。
+   *
+   * @param startEpisode 实际起播的集次（未购买时是试看那一节，而非首集）
+   */
+  resolveBarrageIds(course, courseId, startEpisode) {
     if (!course) {
       return {barrageEpisodeId: String(courseId || ''), legacyEpisodeId: null};
     }
-    const firstEpisode = this.firstEpisodeOf(course);
-    const firstEpisodeId = firstEpisode && firstEpisode.id ? String(firstEpisode.id) : '';
+    const startEpisodeId = startEpisode && startEpisode.id ? String(startEpisode.id) : '';
     const courseIdStr = String(courseId || course.id || '');
-    const barrageEpisodeId = firstEpisodeId || courseIdStr;
-    const legacyEpisodeId = firstEpisodeId && courseIdStr && courseIdStr !== barrageEpisodeId
+    const barrageEpisodeId = startEpisodeId || courseIdStr;
+    // 历史弹幕曾以 courseId 落库，那批数据属于首集；起播的不是首集时不能并进来，
+    // 否则会把第一章的弹幕放到别的章节上（playEpisode 切集时同样置空）。
+    const firstEpisode = this.firstEpisodeOf(course);
+    const isFirstEpisode = !!firstEpisode && !!startEpisodeId
+      && String(firstEpisode.id) === startEpisodeId;
+    const legacyEpisodeId = isFirstEpisode && courseIdStr && courseIdStr !== barrageEpisodeId
       ? courseIdStr
       : null;
     return {barrageEpisodeId, legacyEpisodeId};
@@ -57,6 +73,74 @@ Page({
       if (episodes.length) return episodes[0];
     }
     return null;
+  },
+
+  /**
+   * 未购买用户唯一能看的那一节：第二章第一节。
+   *
+   * 按数组下标取（seasons[1].episodes[0]）而不是按 idx 字段排序，是为了和目录里
+   * 「第{{seasonIndex + 1}}章」的编号严格对齐——否则会出现界面标着「第二章」、
+   * 放开的却是别的一章。课程不足两章或第二章没有集次时，回退到首个有集次章节的首节，
+   * 保证任何课程都至少有一节可试看。
+   */
+  freeEpisodeOf(course) {
+    const seasons = (course && course.seasons) || [];
+    const second = seasons[1];
+    if (second && second.episodes && second.episodes.length) {
+      return second.episodes[0];
+    }
+    return this.firstEpisodeOf(course);
+  },
+
+  /**
+   * 给目录里每一节打上 locked / free 标记，并算出试看节的展示名。
+   *
+   * WXML 里表达不了「是不是那一节」这种判断，所以在 setData 之前一次性算好。
+   * 已购买用户全部解锁，标记也就都是 false。
+   *
+   * @return {{freeEpisodeId: string|null, freeEpisodeLabel: string}}
+   */
+  decorateCatalog(course, purchased) {
+    const seasons = (course && course.seasons) || [];
+    const free = purchased ? null : this.freeEpisodeOf(course);
+    const freeId = free && free.id ? String(free.id) : null;
+    let freeEpisodeLabel = '';
+
+    seasons.forEach((season, seasonIndex) => {
+      (season.episodes || []).forEach((ep, epIndex) => {
+        const isFree = !!freeId && String(ep.id) === freeId;
+        ep.locked = !purchased && !isFree;
+        ep.free = !purchased && isFree;
+        if (isFree) {
+          freeEpisodeLabel = `第${seasonIndex + 1}章第${epIndex + 1}节`;
+        }
+      });
+    });
+    return {freeEpisodeId: freeId, freeEpisodeLabel};
+  },
+
+  /**
+   * 查询当前用户是否已购买本课程。
+   *
+   * 未登录直接视为未购买；接口异常也降级为未购买（只影响试看范围，不该白屏）。
+   */
+  checkPurchased(courseId) {
+    const user = wx.getStorageSync('user');
+    if (!user || !user.id) return Promise.resolve(false);
+    return api.get('orderDetail', '/isPurchased', {fkUserId: user.id, fkCourseId: courseId})
+      .then(res => res === true || res === 'true')
+      .catch(err => {
+        console.error('check purchased failed', err);
+        return false;
+      });
+  },
+
+  /** 点了锁住的章节：提示购买，确认后直接进支付流程 */
+  promptPurchase() {
+    const that = this;
+    const label = this.data.freeEpisodeLabel;
+    const scope = label ? `本课程仅${label}可免费试看，` : '本课程需购买后观看，';
+    util.modal('请购买课程', scope + '购买后即可解锁全部章节。', () => that.pay());
   },
 
   /**
@@ -79,6 +163,11 @@ Page({
 
   onEpisodeTap(ev) {
     const dataset = (ev.currentTarget && ev.currentTarget.dataset) || {};
+    // locked 以 1/0 传递：dataset 里拿到字符串 "false" 会被判为真
+    if (Number(dataset.locked) === 1) {
+      this.promptPurchase();
+      return;
+    }
     const episodeId = String(dataset.id || '');
     if (!episodeId || episodeId === this.data.currentEpisodeId) return;
     this.playEpisode({
@@ -111,21 +200,29 @@ Page({
 
   getCourseInfo(courseId) {
     const that = this;
-    api.get('course', '/select/' + courseId).then(res => {
+    // 课程详情与购买状态并行拉取：目录的锁定标记依赖两者
+    Promise.all([
+      api.get('course', '/select/' + courseId),
+      that.checkPurchased(courseId)
+    ]).then(([res, purchased]) => {
       res.created = util.dateFormat(res.created);
       res.updated = util.dateFormat(res.updated);
-      // 默认播首集，目录里可点击切集
-      const firstEpisode = that.firstEpisodeOf(res);
-      const videoPoster = that.resolveEpisodePoster(firstEpisode);
-      const videoTitle = (firstEpisode && firstEpisode.title) || res.title || '课程视频';
-      const ids = that.resolveBarrageIds(res, courseId);
-      that._pendingVideoSrc = firstEpisode
-        ? that.resolveEpisodeVideoSrc(firstEpisode)
+      const {freeEpisodeId, freeEpisodeLabel} = that.decorateCatalog(res, purchased);
+      // 已购买默认播首集；未购买只能从试看那一节起播，否则一进页面就越过了门禁
+      const startEpisode = purchased ? that.firstEpisodeOf(res) : that.freeEpisodeOf(res);
+      const videoPoster = that.resolveEpisodePoster(startEpisode);
+      const videoTitle = (startEpisode && startEpisode.title) || res.title || '课程视频';
+      const ids = that.resolveBarrageIds(res, courseId, startEpisode);
+      that._pendingVideoSrc = startEpisode
+        ? that.resolveEpisodeVideoSrc(startEpisode)
         : constant.MINIO_VIDEO + 'lesson.mp4';
       that.setData({
         courseId: String(courseId),
         course: res,
-        currentEpisodeId: firstEpisode && firstEpisode.id ? String(firstEpisode.id) : null,
+        purchased,
+        freeEpisodeId,
+        freeEpisodeLabel,
+        currentEpisodeId: startEpisode && startEpisode.id ? String(startEpisode.id) : null,
         videoPoster,
         videoTitle,
         barrageEpisodeId: ids.barrageEpisodeId,
@@ -215,6 +312,21 @@ Page({
 
   onVideoError(ev) {
     console.error('[barrage] video error', ev.detail);
+  },
+
+  /**
+   * 打开小精灵：暂停视频，并把提问那一刻的播放进度交给它。
+   * 播放进度是小精灵理解「刚才那段」的唯一依据，所以必须在这里快照，
+   * 而不是让组件长期订阅 currentTime（那样每 250ms 就要 setData 一次）。
+   */
+  onSpriteOpen() {
+    if (this.videoContext) this.videoContext.pause();
+    this.setData({spriteCurrentTime: this.data.currentTime || 0});
+  },
+
+  /** 关闭小精灵：继续播放，学员接着看 */
+  onSpriteClose() {
+    if (this.videoContext) this.videoContext.play();
   },
 
   onDanmuInput(ev) {
@@ -389,6 +501,10 @@ Page({
 
   addToCart() {
     if (!util.isLogin()) return;
+    if (this.data.purchased) {
+      util.tip('您已购买该课程');
+      return;
+    }
     const course = this.data.course;
     if (!course) return;
     const params = {
@@ -401,22 +517,14 @@ Page({
     }).catch(err => console.error(err));
   },
 
-  chatMe() {
-    const course = this.data.course;
-    let url = '/pages/course/detail/chat/chat';
-    if (course && course.id) {
-      url += '?courseId=' + course.id;
-      if (course.title) {
-        url += '&courseTitle=' + encodeURIComponent(course.title);
-      }
-    }
-    util.page(url, false);
-  },
-
   pay() {
     const that = this;
     if (!util.isLogin()) {
       util.error('请先登录');
+      return;
+    }
+    if (this.data.purchased) {
+      util.tip('您已购买该课程');
       return;
     }
     const course = this.data.course;
@@ -472,8 +580,24 @@ Page({
     }
   },
 
+  /**
+   * 支付完成后会先跳订单页再返回，回来时购买状态已经变了，需要重新解锁目录。
+   * 只在尚未购买时查询，已购买的页面不必再问一次。
+   */
+  refreshPurchasedState() {
+    const that = this;
+    const {courseId, course, purchased} = this.data;
+    if (purchased || !courseId || !course) return;
+    this.checkPurchased(courseId).then(nowPurchased => {
+      if (!nowPurchased) return;
+      const {freeEpisodeId, freeEpisodeLabel} = that.decorateCatalog(course, true);
+      that.setData({purchased: true, course, freeEpisodeId, freeEpisodeLabel});
+    });
+  },
+
   onShow() {
     if (!this.data.courseId || !this.data.course) return;
+    this.refreshPurchasedState();
     if (!this.data.videoReady) {
       this.reconnectBarrageWs();
       this.mountVideoWithBarrage(this.data.currentTime || 0);

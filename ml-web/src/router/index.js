@@ -5,7 +5,7 @@ import Login from "../views/Login.vue";
 import Forbidden from "../views/Forbidden.vue";
 import store from "../store";
 import { getToken } from "../utils/auth";
-import { collectMenuPaths } from "../utils/menu";
+import { menuGroups } from "./menu";
 import { buildDynamicRoutes } from "./dynamic";
 import { hasAnyRole } from "../utils/permissions";
 import { ElMessageBox } from "element-plus";
@@ -48,25 +48,19 @@ const syncDynamicRoutes = () => {
   if (dynamicRoutesReady) {
     return false;
   }
-  const menus = store.state.menus || [];
-  const dynamicRoutes = buildDynamicRoutes(menus);
-  dynamicRoutes.forEach((route) => {
+  buildDynamicRoutes().forEach((route) => {
     router.addRoute("admin", route);
   });
   dynamicRoutesReady = true;
   return true;
 };
 
-const hasMenuAccess = (path, menus = []) => {
-  if (!menus.length) {
-    return true;
-  }
-  const allowed = collectMenuPaths(menus);
-  if (!allowed.length) {
-    return true;
-  }
-  return allowed.includes(path) || path.startsWith("/dashboard");
-};
+// 访问控制只按前端静态菜单判断。
+// 后端 menu 表存的是 /Notice 这类路径，与本后台的 /notices 对不上，
+// 用它做校验会把三个页面全部拦成 403。角色校验仍然生效（见 route.meta.roles）。
+const ALLOWED_PATHS = menuGroups.flatMap((group) => (group.items || []).map((item) => item.path));
+
+const hasMenuAccess = (path) => ALLOWED_PATHS.includes(path) || path.startsWith("/dashboard");
 
 const ensureRolesLoaded = async () => {
   const userId = store.state.user?.id;
@@ -125,7 +119,7 @@ router.beforeEach(async (to, from, next) => {
     next("/403");
     return;
   }
-  if (!hasMenuAccess(to.path, store.state.menus || [])) {
+  if (!hasMenuAccess(to.path)) {
     await showNoAccess();
     next("/403");
     return;

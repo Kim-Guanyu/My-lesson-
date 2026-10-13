@@ -36,3 +36,20 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Python（ml-agent 智能体服务）###
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# 环境变量：内含大模型 API Key，绝对不能提交
+.env
+.env.local
+
+# 向量库持久化目录与知识库索引产物（可由 ingest 脚本重建）
+ml-agent/data/

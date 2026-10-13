@@ -129,6 +129,12 @@ public class BannerController {
         return new Result<>(bannerService.uploadBanner(bannerFile, id));
     }
 
+    @Operation(summary = "查询 - MinIO图片列表", description = "列出 MinIO banner 目录下的所有图片文件名，供运营后台换图时选择")
+    @GetMapping("minioImages")
+    public List<String> minioImages() {
+        return bannerService.minioImages();
+    }
+
 
 
 

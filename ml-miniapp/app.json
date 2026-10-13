@@ -8,7 +8,6 @@
     "pages/index/login-by-phone/login-by-phone",
     "pages/index/register/register",
     "pages/course/detail/detail",
-    "pages/course/detail/chat/chat",
     "pages/user/order/order",
     "pages/user/order/player/player",
     "pages/user/video/video",

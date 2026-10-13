@@ -34,12 +34,15 @@
         <van-tab title="目录">
           <view class="catalog" wx:for="{{course.seasons}}" wx:key="id" wx:for-item="season" wx:for-index="seasonIndex">
             <view class="season-title">第{{seasonIndex + 1}}章 {{season.title}}</view>
-            <view class="ep {{currentEpisodeId === ep.id + '' ? 'ep-active' : ''}}"
+            <view class="ep {{currentEpisodeId === ep.id + '' ? 'ep-active' : ''}} {{ep.locked ? 'ep-locked' : ''}}"
                   wx:for="{{season.episodes}}" wx:key="id" wx:for-item="ep" wx:for-index="epIndex"
                   data-id="{{ep.id}}" data-video="{{ep.video}}" data-cover="{{ep.cover}}" data-title="{{ep.title}}"
+                  data-locked="{{ep.locked ? 1 : 0}}"
                   bindtap="onEpisodeTap">
               <text class="ep-idx">{{epIndex + 1}}</text>
               <text class="ep-title">{{ep.title}}</text>
+              <text class="ep-free" wx:if="{{ep.free}}">试看</text>
+              <van-icon class="ep-lock" wx:if="{{ep.locked}}" name="lock"/>
               <text class="ep-playing" wx:if="{{currentEpisodeId === ep.id + ''}}">播放中</text>
             </view>
             <view class="ep-empty" wx:if="{{!season.episodes || season.episodes.length === 0}}">本章暂无集次</view>
@@ -50,16 +53,34 @@
   </scroll-view>
 
   <view class="detail-actions">
-    <view class="detail-actions-row">
-      <van-button icon="service-o" type="default" size="small" bind:tap="chatMe">客服</van-button>
-      <van-button icon="shopping-cart-o" type="warning" size="small" bind:tap="toCart">购物车</van-button>
-      <van-button type="primary" size="small" bind:tap="addToCart">加入购物车</van-button>
+    <block wx:if="{{!purchased}}">
+      <view class="detail-actions-row">
+        <van-button icon="shopping-cart-o" type="warning" size="small" bind:tap="toCart">购物车</van-button>
+        <van-button type="primary" size="small" bind:tap="addToCart">加入购物车</van-button>
+      </view>
+      <van-button class="detail-buy-btn" type="danger" block bind:tap="pay">立即购买</van-button>
+    </block>
+    <view class="detail-purchased" wx:else>
+      <van-icon name="passed"/>
+      <text>已购买 · 可观看全部章节</text>
     </view>
-    <van-button class="detail-buy-btn" type="danger" block bind:tap="pay">立即购买</van-button>
   </view>
 </view>
 
 <van-empty wx:else description="加载中或课程不存在"/>
+
+<!-- 悬浮小精灵：把当前课程与播放位置交给它，学员随时能问。
+     注意必须放在 wx:if / wx:else 之外，否则会打断条件链。 -->
+<sprite
+  wx:if="{{course}}"
+  course-id="{{course.id}}"
+  course-title="{{course.title}}"
+  episode-id="{{currentEpisodeId}}"
+  episode-title="{{videoTitle}}"
+  current-time="{{spriteCurrentTime}}"
+  bind:open="onSpriteOpen"
+  bind:close="onSpriteClose"
+/>
 
 <van-dialog class="pay-dialog" title="支付订单" show="{{ payDialogShow }}" show-confirm-button="{{false}}" use-slot width="400px">
   <van-divider dashed/>

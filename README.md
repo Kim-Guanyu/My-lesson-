@@ -11,7 +11,9 @@
 
 > **知堂**是一套面向在线教育场景的**网课售卖与学习平台**，覆盖「选课 → 下单 → 支付 → 学习 → 互动」完整链路，包含微信小程序（学员端）、Vue3 运营后台（管理端）与 Spring Cloud 微服务后端。
 
-项目以**付费课程**为核心业务载体，重点打磨了三块工程能力：**秒杀抢课的高并发链路**（Redis Lua 原子扣减 + RocketMQ 异步建单 + 失败补偿）、**支付闭环**（支付宝当面付 + 延迟消息超时取消 + 幂等防重）、**课堂实时互动**（WebSocket 弹幕 + Elasticsearch 持久化回放）。适用于微服务实践学习、毕业设计与技术面试作品展示。
+项目以**付费课程**为核心业务载体，重点打磨了三块工程能力：**秒杀抢课的高并发链路**（RocketMQ 事务消息包裹 Redis Lua 原子扣减，1000 并发实测无超卖）、**支付闭环**（支付宝当面付 + 延迟消息超时取消 + 幂等防重）、**课堂实时互动**（WebSocket 弹幕 + Elasticsearch 持久化回放）。适用于微服务实践学习、毕业设计与技术面试作品展示。
+
+> 🔬 秒杀链路做过两轮 1000 并发压测：第一轮压出了一个「MQ 发送超时被误判为发送失败」的补偿竞态（订单已建、库存却被回滚，存在超卖窗口），改用事务消息修复后复测四口径对账全部闭合。完整数据与定位过程见 [压测报告](docs/seckill-loadtest-report.md)。
 
 > 💡 仓库中模块以 `ml-` 前缀命名，来源于项目代号 **my-lesson**（我的课堂），与业务名「知堂」对应。
 
@@ -41,13 +43,13 @@
 |------|------|
 | 🎓 **三级课程模型** | 课程 → 章节 → 课时，课时对应 MinIO 中的视频文件，支持在线播放 |
 | 💳 **付费学习闭环** | 购物车 / 立即购买 → 预支付 → 支付宝扫码 → 支付回调 → 「我的课程」解锁 |
-| ⚡ **秒杀抢课** | Redis Lua 原子扣库存、用户占位幂等、秒级限流、MQ 异步建单、失败自动补偿回滚 |
+| ⚡ **秒杀抢课** | RocketMQ 事务消息绑定「Lua 原子扣库存」与「建单消息」、用户占位幂等、秒级限流、事务回查兜底 |
 | ⏱ **订单超时自动取消** | RocketMQ 延迟消息驱动，取消后回滚秒杀库存与用户占位 |
 | 💬 **课堂弹幕** | WebSocket 实时广播 + 异步写入 Elasticsearch，重进课堂按视频时间点回放 |
 | 🔍 **课程检索** | Elasticsearch 按课程标题 / 讲师（`author`）分页搜索 |
 | 🔐 **网关统一鉴权 + RBAC** | 网关 Token 校验与滑动续期，后台动态菜单与按钮级权限 |
 | 📢 **运营与营销** | 轮播图、公告、文章、优惠券、整点秒杀（XXL-JOB 定时开关与预热） |
-| 🤖 **自助客服** | FAQ 关键词匹配 + Feign 拉取当前用户订单上下文，答复带订单状态 |
+| ✨ **悬浮小精灵（AI 助教）** | 视频旁悬浮球随时提问，结合播放进度 + 外挂知识库（RAG）回答；LangGraph 智能体，可调用课程 / 订单 / 弹幕等工具 |
 | 🧱 **工程化基建** | Nacos 配置中心、OpenFeign + 降级 fallback、Sentinel、Knife4j 文档、Micrometer + Zipkin 链路追踪、MyBatis-Flex 代码生成 |
 
 ---
@@ -69,7 +71,7 @@ flowchart TB
         USER["ml-user<br/>用户 / 角色 / 菜单"]
         COURSE["ml-course<br/>课程 / 章节 / 课时"]
         ORDER["ml-order<br/>购物车 / 订单 / 支付"]
-        SALE["ml-sale<br/>营销 / 秒杀 / 客服"]
+        SALE["ml-sale<br/>营销 / 秒杀"]
         BARRAGE["ml-barrage :24106<br/>弹幕 WebSocket"]
     end
 
@@ -134,7 +136,7 @@ flowchart TB
 | `ml-user` | 40 类 | 用户注册登录（账号 / 手机验证码）、角色、菜单、用户角色与角色菜单关联、头像上传 |
 | `ml-course` | 62 类 | 课程分类、课程、章节、课时、评论、举报、关注，ES 课程检索 |
 | `ml-order` | 34 类 | 购物车、订单与订单明细、预支付与支付宝对接、MQ 建单与超时取消、我的课程 |
-| `ml-sale` | 59 类 | 轮播图、公告、文章、优惠券、秒杀活动与明细、自助客服、XXL-JOB 任务 |
+| `ml-sale` | 59 类 | 轮播图、公告、文章、优惠券、秒杀活动与明细、XXL-JOB 任务 |
 | `ml-barrage` | 6 类 | 弹幕 WebSocket 服务，广播在线消息并异步落 ES |
 | `ml-common` | 64 类 | 公共实体与 TableDef、统一返回 `Result` / `ResultCode`、全局异常、Redis / MinIO / Excel 工具、常量 `ML`、秒杀 Key 规范与补偿组件 |
 | `ml-generator` | 5 类 | MyBatis-Flex 代码生成器（实体、Mapper、Service、Controller 模板） |
@@ -181,7 +183,15 @@ flowchart TB
 
 ### 4. 秒杀高并发（本项目重点）
 
-早期实现是「全局 Redisson 锁 + `get`/`incr` 非原子扣减」，全活动串行、可重复下单、价格可被篡改。现版本改造为无锁原子链路：
+链路演进经历了两次重构，每次都是被具体问题推着走的：
+
+| 版本 | 方案 | 被什么问题推翻 |
+|------|------|----------------|
+| v1.0 | 全局 Redisson 锁 + `get`/`incr` 非原子扣减 | 全活动串行；查重在锁外可重复下单；价格由客户端传入可篡改 |
+| v2.0 | Lua 原子扣减 + 发送失败即回滚库存 | **1000 并发压出补偿竞态**：`convertAndSend` 超时被当成失败去回滚，而消息其实已投递、消费端已建单 → 25 张订单的库存被白还回去，理论最大成交 125 > 库存 100 |
+| **v2.1** | **RocketMQ 事务消息包裹 Lua 扣减** | 当前版本，复测四口径闭合 |
+
+**v2.1 链路**：
 
 ```
 小程序（本地节流 1.5s + 随机错峰 ≤400ms）
@@ -194,13 +204,27 @@ ml-gateway（Token 校验）
     ├─ 用户秒级限流             INCR + 2s TTL，默认 10 次/秒
     ├─ 活动状态缓存             seckill:status:{id}，5s 短 TTL 挡状态翻转瞬间的查库风暴
     ├─ 商品明细缓存             seckill:detail:{id}:{courseId}，价格以库为准
-    ├─ Lua 原子脚本             判占位 → 判库存 → DECR + SET 占位（一次往返）
-    ├─ 预支付快照               seckill:prepay:{sn}，二维码可与 MQ 建单并行拉取
-    └─ RocketMQ 异步建单        失败即 rollbackKill 补偿回滚
+    ├─ 只读预检                 库存已空或已占位则直接返回，不往 broker 写半消息
+    └─ RocketMQ 事务消息
+         ① 发半消息                                    消费端不可见
+         ② 本地事务：Lua 判占位 → 判库存 → DECR + SET 占位 + 预支付快照
+         ③ 按 Lua 结果提交或丢弃半消息
+         ④ ③ 的往返丢失 → broker 回查占位 Key 裁决      ← 不再靠 catch 猜
             │
-            ▼ ml-order OrderMessageListener
+            ▼（提交后消息才对消费端可见）
+            ml-order OrderMessageListener
             └─ createSeckillOrder：sn 幂等 + 待付款防重 + 已支付待落库标记
 ```
+
+**为什么事务消息能消除竞态**：网络超时的语义是三态（成功 / 失败 / **未知**），而 `try-catch` 只有两态。把「未知」当「失败」去补偿，就会在消息其实已投递时把库存白还回去。事务消息把三个失败点的语义彻底拆开：
+
+| 失败点 | 行为 | 库存 |
+|--------|------|------|
+| 半消息发送失败 | 抛异常，**本地事务根本没执行** | 分毫未动，无需补偿 |
+| 本地事务返回 ROLLBACK | broker 丢弃半消息 | 只在 Lua 没扣成功时发生 |
+| 提交/回滚的往返失败 | 客户端**只记日志不抛异常** | 不再误回滚，转入回查 |
+
+**回查判据**：用户占位 Key 的值就是订单号，而它只在 Lua 扣减成功时写入 ——「占位值 == 本消息 sn」与「本地事务执行成功」完全等价。这个 Key 天然就是一张事务状态表，不需要额外建表落库。
 
 **Lua 脚本返回值语义**：`1` 扣减成功 / `0` 用户已占位（幂等直接返回原订单号） / `-1` 库存不足。
 
@@ -239,7 +263,7 @@ ml-gateway（Token 校验）
 - **首页运营位**：轮播图、公告、推荐文章，均带 Redis 前 N 条缓存（`top_banner:` / `top_notice:` / `top_article:`）。
 - **优惠券**：兑换口令领取，购物车结算时抵扣。
 - **数据看板**：用户与订单统计数据缓存于 Redis（`user_statistics_data`、`order_statistics_data`），后台以 ECharts 呈现。
-- **自助客服**：内置 6 条 FAQ，`CustomerServiceImpl` 先做 FAQ 匹配、再做关键词分支（购买 / 支付 / 退款 / 优惠券 / 秒杀等），并通过 Feign 调 `ml-order` 拼接当前用户的订单上下文，让答复带上真实订单状态。
+- **悬浮小精灵（AI 助教）**：由独立的 Python 智能体服务 [`ml-agent`](ml-agent/README.md) 提供。学员在课程详情页看视频时，点击悬浮球即可提问；请求携带当前课程、课时与**播放进度**，小精灵据此理解「刚才那段」。基于 LangGraph 的 ReAct 循环，可调用外挂知识库检索（Chroma 向量库）以及课程目录、课程搜索、课时信息、课堂弹幕、我的订单、我的已购课程等工具。身份从 Redis 登录令牌解析，不接受前端传 `userId`，避免越权查询。
 
 ---
 
@@ -426,7 +450,8 @@ VITE_API_PROXY=http://localhost:24101
 | `user-server` | ml-user | `user`、`role`、`menu`、`userRole`、`roleMenu` |
 | `course-server` | ml-course | `course`、`category`、`season`、`episode`、`comment`、`report`、`follow` |
 | `order-server` | ml-order | `order`、`orderDetail`、`cart` |
-| `sale-server` | ml-sale | `banner`、`notice`、`article`、`coupons`、`seckill`、`seckillDetail`、`customerService` |
+| `sale-server` | ml-sale | `banner`、`notice`、`article`、`coupons`、`seckill`、`seckillDetail` |
+| `agent-server` | ml-agent | `sprite`（悬浮小精灵，Python 服务，网关静态路由） |
 
 **统一响应体**（`ml-common` 中 `Result` + `ResultAdvice` 自动包装）：
 
@@ -442,6 +467,7 @@ VITE_API_PROXY=http://localhost:24101
 |------|------|------|
 | ml-gateway | 24101 | HTTP 统一入口 |
 | ml-barrage | 24106 | WebSocket 弹幕 |
+| ml-agent | 24107 | 悬浮小精灵（Python / FastAPI，不注册 Nacos） |
 | Nacos | 8848 | 注册 / 配置中心 |
 | MySQL | 3306 | 四个业务库 |
 | Redis | 6379 | 会话与缓存 |
@@ -459,10 +485,11 @@ VITE_API_PROXY=http://localhost:24101
 mvn test
 ```
 
-当前覆盖秒杀链路的关键补偿与消费逻辑：
+共 20 个用例，集中在秒杀链路最容易出事的几处：
 
-- `ml-common` → `SeckillStockCompensatorTest`：库存回滚的归属校验（只回滚自己占位的那一单）
-- `ml-order` → `OrderMessageListenerTest`：MQ 建单的幂等与防重
+- `ml-sale` → `SeckillTxListenerTest`（14 个）：事务消息的提交/回滚/回查三条路径。含两条关键守卫 ——「Lua 扣减成功后即使预支付快照写失败也必须提交」（回滚只丢半消息不退库存，那是永久少卖）、「回查时已支付一律提交」（否则会出现付了钱却没有订单）
+- `ml-common` → `SeckillStockCompensatorTest`（3 个）：库存回滚的归属校验，只回滚自己占位的那一单
+- `ml-order` → `OrderMessageListenerTest`（3 个）：MQ 建单的幂等与防重
 
 **秒杀压测**（`scripts/seckill-loadtest/`，Node ESM 脚本 + JMeter 方案）
 
@@ -476,6 +503,20 @@ node compare-reports.mjs             # 对比多轮压测报告
 
 脚本会直连 Redis 校验 `seckill:stock:{seckillId}:{courseId}` 的最终库存与订单数是否一致。压测前可调用 `POST /seckill/prepareLoadTest?seckillId=&stock=` 重置库存并清理该活动的用户占位。详见 [scripts/seckill-loadtest/README.md](scripts/seckill-loadtest/README.md)。
 
+**对账口径**：不看单一指标 —— API 返回成功不代表订单落库（MQ 可能丢），Redis 扣到 0 不代表卖了 100 单（可能建单失败没回补），DB 有 100 单也不代表没重复（可能同一 sn 建了两次）。所以压完直连 Redis 与 MySQL，**五个口径必须同时对上**：
+
+| 口径 | v2.0（有 bug） | v2.1（修复后） |
+|------|---------------|---------------|
+| 消费端实际收到消息 | 96 | 101 |
+| DB 订单数 | 96 | **100** |
+| Redis 用户占位 | 71 ❌ | **100** ✅ |
+| Redis 剩余库存 | 29 | **0** |
+| 订单数 + 库存 | 125 ❌ 超卖窗口 | **100** ✅ |
+
+其中「**DB 订单数 == Redis 占位数**」是最灵敏的判据 —— 它被打破就意味着存在「订单有效但库存已释放」的悬空单，v2.0 的 bug 正是被这一条揪出来的。
+
+完整的压测方案、原始数据、根因定位过程与修复验证见 **[docs/seckill-loadtest-report.md](docs/seckill-loadtest-report.md)**。
+
 ---
 
 ## 目录结构
@@ -486,10 +527,11 @@ node compare-reports.mjs             # 对比多轮压测报告
 ├── ml-user/                  # 用户 / 角色 / 菜单服务
 ├── ml-course/                # 课程内容服务（含 ES 检索）
 ├── ml-order/                 # 订单与支付服务（含 MQ 消费）
-├── ml-sale/                  # 营销 / 秒杀 / 客服服务（含 XXL-JOB）
+├── ml-sale/                  # 营销 / 秒杀服务（含 XXL-JOB）
 ├── ml-barrage/               # 弹幕 WebSocket 服务
 ├── ml-common/                # 公共实体、工具、统一返回、秒杀 Key 与补偿
 ├── ml-generator/             # MyBatis-Flex 代码生成器
+├── ml-agent/                 # 悬浮小精灵 AI 智能体（Python，不挂 Maven）
 ├── ml-web/                   # 运营后台（Vue3 + Vite）
 ├── ml-miniapp/               # 学员端小程序
 ├── docs/
@@ -519,7 +561,7 @@ node compare-reports.mjs             # 对比多轮压测报告
 - [x] 支付宝扫码支付、继续支付、订单列表
 - [x] 我的课程（已购课程学习入口）
 - [x] 关注列表、资料编辑（昵称 / 性别 / 年龄 / 星座 / 省份 / 邮箱 / 头像）、修改密码
-- [x] 自助客服问答
+- [x] 悬浮小精灵 AI 助教（LangGraph 智能体 + 外挂知识库）
 
 ### 运营后台
 
@@ -538,13 +580,17 @@ node compare-reports.mjs             # 对比多轮压测报告
 坦诚列出当前状态，也是后续迭代方向：
 
 - [x] ~~**补充建表 SQL**~~：已补充，见 [`document/sql/`](document/sql/)（仅建表，尚无种子数据脚本）。
-- [ ] **测试覆盖**：目前仅 2 个单测集中在秒杀链路，Service 层整体缺少测试。
+- [x] ~~**秒杀发送超时误判**~~：v2.1 已用 RocketMQ 事务消息替代「发送失败即回滚」，见 [压测报告](docs/seckill-loadtest-report.md)。
+- [ ] **测试覆盖**：20 个单测集中在秒杀链路，Service 层整体仍缺少测试。
+- [ ] **日志落盘配置**：项目没有 `logback-spring.xml`，日志只输出到 stdout 靠重定向兜着，没有滚动与归档策略。
+- [ ] **状态缓存击穿**：`seckill:status:{id}` 只有 5s TTL，压测中观察到大批请求同时回源查库。短 TTL 是为了状态翻转能快速自愈，代价是挡不住集中流量，可改逻辑过期 + 单飞。
 - [ ] **服务侧鉴权加固**：鉴权集中在网关，微服务端口若直接暴露可被绕过，生产环境需网络隔离或服务间调用签名。
 - [ ] **配置外部化**：`bootstrap.yaml` 与小程序 `const.js` 中的地址仍为开发环境硬编码，建议改为环境变量 / 多环境配置。
 - [ ] **网关限流**：接入 Sentinel 全局流控规则（依赖已引入，规则尚未配置）。
 - [ ] **秒杀排队页**：令牌桶下发 `killToken`，进一步削峰。
 - [ ] **支付成功后清理**：支付完成即删除秒杀用户占位 Key（当前依赖 TTL 自然过期）。
-- [ ] **自助客服升级**：现为关键词规则匹配，可接入大模型做语义理解与多轮对话。
+- [ ] **课程字幕入库**：当前 `episode` 表只有标题与描述，没有「视频里讲了什么」的可检索数据。接 ASR 自动转写、产出带时间戳的字幕分片入库后，小精灵才能真正回答「老师刚才那句是什么意思」。
+- [ ] **小精灵流式输出**：现为非流式，可改 SSE + 小程序 `enableChunked` 做打字机效果。
 - [ ] **微信支付**：常量已预留 `WECHAT_PAY`，尚未接入。
 
 ---

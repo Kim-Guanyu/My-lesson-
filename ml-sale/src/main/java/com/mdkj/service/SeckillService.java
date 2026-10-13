@@ -35,4 +35,22 @@ public interface SeckillService extends IService<Seckill> {
      * 压测准备：开启活动并重置 Redis 库存
      */
     boolean prepareLoadTest(Long seckillId, Integer stock);
+
+    /**
+     * 开启秒杀活动：状态置为「已开始」，并按明细配置的库存预热 Redis。
+     * <p>
+     * 不预热的话，小程序端点「立即秒杀」会因为 Redis 无库存而失败。
+     *
+     * @param seckillId 活动主键
+     * @return 是否成功
+     */
+    boolean start(Long seckillId);
+
+    /**
+     * 结束秒杀活动：状态置为「已结束」。
+     *
+     * @param seckillId 活动主键
+     * @return 是否成功
+     */
+    boolean stop(Long seckillId);
 }

@@ -24,4 +24,11 @@ public class BannerUpdateDTO implements Serializable {
     @Schema(description = "描述")
     @Pattern(regexp = ML.Regex.INFO_RE, message = ML.Regex.INFO_RE_MSG)
     private String info;
+
+    /**
+     * 图片文件名（MinIO banner 目录下的对象名，不含目录前缀）。
+     * 运营后台「换图」时从已有图片中选一张传入；为空则不改动原图片。
+     */
+    @Schema(description = "图片文件名，取自 MinIO banner 目录；为空表示不修改")
+    private String url;
 }

@@ -158,7 +158,18 @@ public class ML {
         Integer NOT_START = 0, STARTED = 1, ENDED = 2;
         /** Redis 库存缓存时长（小时） */
         int STOCK_CACHE_HOURS = 12;
-        /** 用户占位 key TTL（秒），需大于订单超时时间 */
+        /**
+         * 用户占位 key TTL（秒）。占位值就是订单号，它同时是秒杀事务消息回查的唯一判据，
+         * 因此这个 TTL 有两条硬约束，改动前务必确认：
+         * <ol>
+         *   <li>必须大于订单超时时间（RocketMQ 延迟级别 14 = 600s）；</li>
+         *   <li>必须大于 broker 的最长事务回查窗口
+         *       {@code transactionTimeOut + transactionCheckMax × transactionCheckInterval}
+         *       （5.1.4 默认 6 + 15×30 = 456s）。否则回查时占位可能已过期被误判为回滚，
+         *       造成「库存已扣、订单永不创建、库存也不归还」的永久少卖。</li>
+         * </ol>
+         * 当前取值对两者分别有 1.6 倍和 2.1 倍余量。
+         */
         int USER_ORDER_TTL_SECONDS = 960;
         /** 单用户每秒最多 kill 次数 */
         int USER_KILL_RATE_PER_SECOND = 10;

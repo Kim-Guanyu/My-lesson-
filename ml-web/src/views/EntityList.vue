@@ -123,7 +123,6 @@ const createPath = computed(() => route.meta?.createPath || "insert");
 const updatePath = computed(() => route.meta?.updatePath || "update");
 const deletePath = computed(() => route.meta?.deletePath || "delete");
 const MINIO_BASE_URL = (import.meta.env.VITE_MINIO_BASE_URL || "http://192.168.211.132:9000/my-lesson").replace(/\/$/, "");
-const MINIO_BASE_URL = (import.meta.env.VITE_MINIO_BASE_URL || "http://192.168.211.132:9001/my-lesson").replace(/\/$/, "");
 const MINIO_BASE_URL_LEGACY = MINIO_BASE_URL.replace(/\/my-lesson$/, "/mylesson");
 
 const loading = ref(false);

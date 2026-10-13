@@ -12,7 +12,10 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 秒杀库存与用户占位：Redis Lua 原子扣减，无全局锁
+ * 秒杀库存与用户占位：Redis Lua 原子扣减，无全局锁。
+ *
+ * <p>{@link #tryKill} 现在作为 RocketMQ 事务消息的「本地事务」被调用，
+ * 由 {@code SeckillTxListener} 驱动，不再由业务代码直接调用后自行补偿。</p>
  */
 @Component
 public class SeckillStockService {
@@ -38,12 +41,47 @@ public class SeckillStockService {
             return 1
             """;
 
+    /**
+     * 只读预检脚本，语义与 {@link #LUA_TRY_KILL} 的前两个判断一致，但不做任何写操作。
+     * 返回值：1=可以尝试，0=用户已占位，-1=库存不足
+     */
+    private static final String LUA_PRECHECK_KILL = """
+            local existing = redis.call('GET', KEYS[2])
+            if existing and existing ~= '' then
+                return 0
+            end
+            if tonumber(redis.call('GET', KEYS[1]) or '0') <= 0 then
+                return -1
+            end
+            return 1
+            """;
+
     @Resource
     private MyRedis redis;
     @Resource
-    private SeckillStockCompensator stockCompensator;
-    @Resource
     private SeckillPrepayStore prepayStore;
+
+    /**
+     * 只读预检：不修改任何 Key，仅用于在发半消息之前挡掉注定失败的请求。
+     *
+     * <p>事务消息把「先扣减再发送」倒转成了「先发半消息再扣减」，若不预检，
+     * 库存早已售罄的请求也要先往 broker 写一条半消息、再回滚，
+     * 1000 打 100 的场景下 broker 写入量会放大约 10 倍，
+     * 还会给最热的 7002 响应路径插进一次 broker 往返。</p>
+     *
+     * <p><b>它不是权威判据</b>：预检放行后仍可能被事务内的 {@link #tryKill} 判为 -1，
+     * 这是正常的，正确性始终由事务内那次 Lua 保证。</p>
+     *
+     * @return 1=可以尝试，0=用户已占位，-1=库存不足
+     */
+    public long preCheckKill(Long seckillId, Long courseId, Long userId) {
+        Long result = redis.lua(
+                LUA_PRECHECK_KILL,
+                List.of(SeckillRedisKeys.stock(seckillId, courseId),
+                        SeckillRedisKeys.userOrder(seckillId, courseId, userId)));
+        // 读不到就放行，把裁决权交给事务内的 Lua，避免预检自身故障误伤正常请求
+        return result == null ? 1L : result;
+    }
 
     public long tryKill(Long seckillId, Long courseId, Long userId, String sn) {
         String stockKey = SeckillRedisKeys.stock(seckillId, courseId);
@@ -60,8 +98,14 @@ public class SeckillStockService {
         return redis.get(SeckillRedisKeys.userOrder(seckillId, courseId, userId));
     }
 
-    public boolean rollbackKill(Long seckillId, Long courseId, Long userId, String sn) {
-        return stockCompensator.rollbackIfOwned(seckillId, courseId, userId, sn);
+    /**
+     * 是否已有支付标记。事务回查必须先问这一句：用户既然已经付款，
+     * 无论占位是否还在，订单都必须建出来，绝不能判回滚。
+     * 与 {@code SeckillStockCompensator#rollbackIfOwned} 和
+     * {@code OrderServiceImpl#handleSeckillOrderTimeout} 的守卫保持一致。
+     */
+    public boolean isPaid(String sn) {
+        return prepayStore.isPaid(sn);
     }
 
     public void savePrepay(String sn, Double payAmount, Long userId, Long seckillId, Long courseId) {

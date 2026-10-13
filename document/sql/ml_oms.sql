@@ -9,6 +9,8 @@
 -- 注意：`order` 上的 uk_order_sn 唯一索引是秒杀链路 MQ 重投的最终幂等
 --       保障，已直接包含在下面的建表语句中（对应增量脚本
 --       20260723_order_sn_unique.sql，新库无需再单独执行）。
+--       `order_detail` 上的 uk_order_detail_order_course 同理，保证一张订单里
+--       同一门课程只有一条明细（对应增量脚本 20260910_order_detail_unique.sql）。
 -- 本脚本只创建库表，不含 DROP，也不含初始数据；重复执行安全。
 -- =====================================================================
 
@@ -54,7 +56,8 @@ CREATE TABLE IF NOT EXISTS `order_detail` (
   `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '0未删除，1已删除',
   `created` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_order_detail_order_course` (`fk_order_id`, `fk_course_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单明细表';
 
 -- ---------------------------------------------------------------------

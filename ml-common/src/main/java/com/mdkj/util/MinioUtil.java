@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.mdkj.exception.ServiceException;
 import io.minio.*;
 import io.minio.http.Method;
+import io.minio.messages.Item;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,6 +13,8 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Resource;
 import java.io.File;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -73,6 +76,45 @@ public class MinioUtil {
             );
         } catch (Exception e) {
             throw new ServiceException(ResultCode.MINIO_ERROR, "MinIO删除失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 列出指定目录下的所有文件名（不含目录前缀）。
+     * <p>
+     * 供运营后台「从 MinIO 已有图片中选图」使用，例如列出 banner 目录下的全部轮播图。
+     *
+     * @param dirName    目录名，如 {@code banner}
+     * @param bucketName 桶名
+     * @return 文件名列表，按名称升序；目录为空时返回空列表
+     */
+    public static List<String> listFileNames(String dirName, String bucketName) {
+        try {
+            MinioUtil util = requireInstance();
+            util.ensureBucket(bucketName);
+
+            String prefix = StrUtil.isBlank(dirName) ? "" : dirName + "/";
+            Iterable<io.minio.Result<Item>> objects = util.minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(bucketName)
+                            .prefix(prefix)
+                            .recursive(true)
+                            .build()
+            );
+
+            List<String> fileNames = new ArrayList<>();
+            for (io.minio.Result<Item> object : objects) {
+                String objectName = object.get().objectName();
+                // 去掉目录前缀，只保留文件名；跳过目录占位对象（以 / 结尾）
+                if (objectName.endsWith("/")) {
+                    continue;
+                }
+                fileNames.add(objectName.substring(prefix.length()));
+            }
+            fileNames.sort(String::compareTo);
+            return fileNames;
+        } catch (Exception e) {
+            throw new ServiceException(ResultCode.MINIO_ERROR, "MinIO列举文件失败: " + e.getMessage());
         }
     }
 

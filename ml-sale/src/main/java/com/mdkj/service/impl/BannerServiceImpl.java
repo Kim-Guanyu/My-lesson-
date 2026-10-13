@@ -215,8 +215,16 @@ public class BannerServiceImpl extends ServiceImpl<BannerMapper, Banner>  implem
             throw new ServiceException(ResultCode.SERVER_ERROR, "MinIO操作失败：" + e.getMessage());
         }
 
+        // 清除缓存：不清的话小程序 banner/top/N 最长 3 小时仍返回旧图
+        myRedis.deleteByPrefix(ML.Redis.TOP_BANNER_KEY_PREFIX);
+
         // 返回新文件名
         return newFileName;
+    }
+
+    @Override
+    public List<String> minioImages() {
+        return MinioUtil.listFileNames(ML.MinIO.BANNER_DIR, ML.MinIO.BUCKET_NAME);
     }
 
 

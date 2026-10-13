@@ -19,13 +19,18 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.mdkj.entity.Seckill;
 import com.mdkj.entity.SeckillDetail;
 import com.mdkj.component.SeckillStockService;
+import com.mdkj.component.SeckillTxContext;
 import com.mdkj.component.TokenUserResolver;
+import com.mdkj.config.SeckillTxProducerConfig;
 import com.mdkj.entity.User;
 import com.mdkj.mapper.SeckillMapper;
 import com.mdkj.service.SeckillService;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.client.producer.TransactionSendResult;
+import org.apache.rocketmq.spring.support.RocketMQHeaders;
 import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -60,8 +65,13 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
     private TokenUserResolver tokenUserResolver;
     @Resource
     private SeckillMapper seckillMapper;
+    /**
+     * 秒杀事务消息专用 Template（独立 producer group，见 {@link SeckillTxProducerConfig}）。
+     * 字段名必须与 Bean 名一致：容器里存在两个 RocketMQTemplate，
+     * {@code @Resource} 先按字段名匹配，名字对不上会退化成按类型注入而报 NoUniqueBeanDefinitionException。
+     */
     @Resource
-    private RocketMQTemplate rocketmqTemplate;
+    private RocketMQTemplate seckillTxRocketMQTemplate;
 
     @Override
     public boolean insert(SeckillInsertDTO dto) {
@@ -284,24 +294,23 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
             seckillStockService.cacheDetail(fkSeckillId, fkCourseId, courseTitle, courseCover, coursePrice, skPrice);
         }
 
-        // Lua 内部已原子校验用户是否已占位，无需在此额外查一次 Redis 再走一遍常规路径
-        String sn = RandomUtil.randomNumbers(19);
-        long luaResult = seckillStockService.tryKill(fkSeckillId, fkCourseId, fkUserId, sn);
-
-        if (luaResult == 0) {
+        // 只读预检：库存已空或用户已占位时直接返回，不往 broker 写半消息。
+        // 事务消息把「先扣减再发送」倒转成「先发半消息再扣减」，不预检的话
+        // 1000 打 100 时约九成注定失败的请求也要先写半消息再回滚，broker 写入放大约 10 倍。
+        // 它不是权威判据，真正的裁决始终在事务内的 Lua。
+        long preCheck = seckillStockService.preCheckKill(fkSeckillId, fkCourseId, fkUserId);
+        if (preCheck == SeckillTxContext.LUA_DUPLICATE) {
             String reservedSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
             if (StrUtil.isNotBlank(reservedSn)) {
-                log.info("用户 {} 重复秒杀请求，返回已有订单号 {}", fkUserId, reservedSn);
+                log.info("用户 {} 重复秒杀请求（预检命中），返回已有订单号 {}", fkUserId, reservedSn);
                 return reservedSn;
             }
-            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀状态异常，请稍后重试");
-        }
-        if (luaResult < 0) {
+            // 预检与读占位之间占位被补偿掉了，继续走事务消息让 Lua 重新裁决
+        } else if (preCheck == SeckillTxContext.LUA_SOLD_OUT) {
             throw new ServiceException(ResultCode.SECKILL_STOCK_OUT, ResultCode.SECKILL_STOCK_OUT.getMESSAGE());
         }
 
-        // 预支付快照：前端可在 MQ 建单前凭 sn 拉支付宝二维码，金额以后端快照为准
-        seckillStockService.savePrepay(sn, skPrice, fkUserId, fkSeckillId, fkCourseId);
+        String sn = RandomUtil.randomNumbers(19);
 
         OrderMessage orderMessage = new OrderMessage();
         orderMessage.setSn(sn);
@@ -315,44 +324,139 @@ public class SeckillServiceImpl extends ServiceImpl<SeckillMapper, Seckill>  imp
         orderMessage.setCourseTitle(courseTitle);
         orderMessage.setCourseCover(courseCover);
 
+        // 事务消息：先发对消费端不可见的半消息，再在本地事务里做 Lua 扣减与预支付快照，
+        // 最后由本地事务的返回值决定这条消息是投递还是丢弃（见 SeckillTxListener）。
+        // 旧实现是「先扣减再发送、发送异常就回滚库存」，而网络超时的语义是「结果未知」而非「失败」，
+        // 把未知当失败回滚，会在消息其实已投递时把库存白还回去，造出「订单有效但库存已释放」的悬空单。
+        SeckillTxContext txContext = new SeckillTxContext(fkSeckillId, fkCourseId, fkUserId, sn, skPrice);
+        TransactionSendResult sendResult;
         try {
-            rocketmqTemplate.convertAndSend("ml-topic:ml-tag", orderMessage);
-            log.info("秒杀 MQ 发送成功，用户 {} 课程 {} 订单 {}", fkUserId, fkCourseId, sn);
+            sendResult = seckillTxRocketMQTemplate.sendMessageInTransaction(
+                    "ml-topic:ml-tag",
+                    MessageBuilder.withPayload(orderMessage)
+                            // 带上订单号做消息 KEY，rocketmq-dashboard 可按 sn 直接检索这条消息，
+                            // 排查「某一单的半消息到底提交没有」时最快。对消费端无影响。
+                            .setHeader(RocketMQHeaders.KEYS, sn)
+                            .build(),
+                    txContext);
         } catch (Exception e) {
-            log.error("秒杀 MQ 发送失败，回滚库存", e);
-            boolean rolledBack = seckillStockService.rollbackKill(
-                    fkSeckillId, fkCourseId, fkUserId, sn);
-            log.warn("秒杀 MQ 发送失败补偿结果：订单 {}，rolledBack={}", sn, rolledBack);
+            // 半消息都没发出去 → 本地事务根本没执行 → 库存分毫未动 → 无需任何补偿。
+            // 这正是事务消息相对旧实现的关键差别：不存在「扣了但不知道消息发没发出去」的中间态。
+            log.error("秒杀半消息发送失败，本地事务未执行，库存未变动，订单 {}", sn, e);
             throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀下单失败，请稍后重试");
         }
-        return sn;
+
+        long luaResult = txContext.getLuaResult();
+        log.info("秒杀事务消息返回：用户 {} 课程 {} 订单 {}，本地事务状态={}，Lua={}",
+                fkUserId, fkCourseId, sn, sendResult.getLocalTransactionState(), luaResult);
+
+        if (luaResult == SeckillTxContext.LUA_OK) {
+            // 库存已扣。即便提交 ack 丢失导致这里的状态不是 COMMIT，broker 也会回查，
+            // 而占位值此刻就等于 sn，回查必然判定提交，消息终将投递。对用户而言这一单已经成立。
+            return sn;
+        }
+        if (luaResult == SeckillTxContext.LUA_DUPLICATE) {
+            String reservedSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
+            if (StrUtil.isNotBlank(reservedSn)) {
+                log.info("用户 {} 重复秒杀请求，返回已有订单号 {}", fkUserId, reservedSn);
+                return reservedSn;
+            }
+            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀状态异常，请稍后重试");
+        }
+        if (luaResult == SeckillTxContext.LUA_SOLD_OUT) {
+            throw new ServiceException(ResultCode.SECKILL_STOCK_OUT, ResultCode.SECKILL_STOCK_OUT.getMESSAGE());
+        }
+
+        // 本地事务执行时抛了异常，库存到底扣没扣未知：占位值是唯一可信依据。
+        // 若占位就是本次的 sn，说明扣减其实成功了，回查也会提交，照常把订单号返回给用户。
+        String heldSn = seckillStockService.getUserOrderSn(fkSeckillId, fkCourseId, fkUserId);
+        if (sn.equals(heldSn)) {
+            log.warn("秒杀本地事务状态未知但占位已持有本单，按成功返回：订单 {}", sn);
+            return sn;
+        }
+        throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀下单失败，请稍后重试");
     }
 
     @Override
     public boolean prepareLoadTest(Long seckillId, Integer stock) {
+        Seckill seckill = requireSeckillWithDetails(seckillId);
+
+        markStatus(seckillId, ML.Seckill.STARTED);
+        preheat(seckill, stock);
+
+        redis.deleteByPrefix(com.mdkj.util.SeckillRedisKeys.userOrderPrefix(seckillId));
+        log.info("压测准备：秒杀活动 {} 已开启，用户占位已清理", seckillId);
+        return true;
+    }
+
+    @Override
+    public boolean start(Long seckillId) {
+        // 必须先配好商品明细，否则活动开了也抢不到东西
+        Seckill seckill = requireSeckillWithDetails(seckillId);
+
+        markStatus(seckillId, ML.Seckill.STARTED);
+        // 用明细里配置的 skCount 作为库存，不覆盖
+        preheat(seckill, null);
+        seckillStockService.cacheStatus(seckillId, ML.Seckill.STARTED);
+
+        log.info("秒杀活动 {} 已开启，共预热 {} 个商品", seckillId, seckill.getSeckillDetails().size());
+        return true;
+    }
+
+    @Override
+    public boolean stop(Long seckillId) {
+        this.existsById(seckillId);
+
+        markStatus(seckillId, ML.Seckill.ENDED);
+        seckillStockService.cacheStatus(seckillId, ML.Seckill.ENDED);
+
+        log.info("秒杀活动 {} 已结束", seckillId);
+        return true;
+    }
+
+    /**
+     * 查出活动及其商品明细，活动不存在或没有明细时抛业务异常。
+     */
+    private Seckill requireSeckillWithDetails(Long seckillId) {
         Seckill seckill = seckillMapper.selectOneWithRelationsById(seckillId);
         if (ObjectUtil.isNull(seckill)) {
             throw new ServiceException(ResultCode.SECKILL_NOT_FOUND, seckillId + "号秒杀活动不存在");
         }
-        List<SeckillDetail> details = seckill.getSeckillDetails();
-        if (CollUtil.isEmpty(details)) {
-            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀活动无商品明细");
+        if (CollUtil.isEmpty(seckill.getSeckillDetails())) {
+            throw new ServiceException(ResultCode.SERVER_ERROR, "秒杀活动无商品明细，请先添加秒杀课程");
         }
+        return seckill;
+    }
 
+    /**
+     * 更新活动状态。
+     */
+    private void markStatus(Long seckillId, Integer status) {
         UpdateChain.of(seckillMapper)
-                .set(SECKILL.STATUS, ML.Seckill.STARTED)
+                .set(SECKILL.STATUS, status)
                 .set(SECKILL.UPDATED, LocalDateTime.now())
                 .where(SECKILL.ID.eq(seckillId))
                 .update();
+    }
 
-        for (SeckillDetail detail : details) {
-            int skCount = stock != null ? stock : detail.getSkCount();
-            seckillStockService.initStock(seckillId, detail.getFkCourseId(), skCount);
-            log.info("压测准备：活动 {} 课程 {} 库存重置为 {}", seckillId, detail.getFkCourseId(), skCount);
+    /**
+     * 预热 Redis：写入每个商品的库存与明细快照。
+     *
+     * @param overrideStock 覆盖库存，为 null 时用明细里配置的 skCount（压测场景才会传值）
+     */
+    private void preheat(Seckill seckill, Integer overrideStock) {
+        Long seckillId = seckill.getId();
+        for (SeckillDetail detail : seckill.getSeckillDetails()) {
+            Long fkCourseId = detail.getFkCourseId();
+            int skCount = overrideStock != null ? overrideStock : detail.getSkCount();
+
+            seckillStockService.initStock(seckillId, fkCourseId, skCount);
+            seckillStockService.cacheDetail(seckillId, fkCourseId,
+                    detail.getCourseTitle(), detail.getCourseCover(),
+                    detail.getCoursePrice(), detail.getSkPrice());
+
+            log.info("预热：活动 {} 课程 {} 库存置为 {}", seckillId, fkCourseId, skCount);
         }
-        redis.deleteByPrefix(com.mdkj.util.SeckillRedisKeys.userOrderPrefix(seckillId));
-        log.info("压测准备：秒杀活动 {} 已开启，用户占位已清理", seckillId);
-        return true;
     }
 
 

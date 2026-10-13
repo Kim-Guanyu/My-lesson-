@@ -170,6 +170,35 @@
     text-overflow: ellipsis;
   }
 
+  // 未购买时锁住的小节：置灰但仍可点击，点击后弹购买提示
+  .ep-locked {
+    color: $text-muted;
+
+    .ep-idx,
+    .ep-title {
+      color: $text-muted;
+    }
+  }
+
+  .ep-lock {
+    flex-shrink: 0;
+    margin-left: 12rpx;
+    font-size: 26rpx;
+    color: $text-muted;
+  }
+
+  // 可免费试看那一节的徽标
+  .ep-free {
+    flex-shrink: 0;
+    margin-left: 12rpx;
+    padding: 0 10rpx;
+    font-size: 20rpx;
+    line-height: 32rpx;
+    color: #ffffff;
+    background: $primary;
+    border-radius: 16rpx;
+  }
+
   .ep-playing {
     flex-shrink: 0;
     margin-left: 12rpx;
@@ -210,6 +239,18 @@
 .detail-buy-btn {
   width: 100%;
   border-radius: 44rpx !important;
+}
+
+// 已购买用户看到的是提示条，而不是购买按钮
+.detail-purchased {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  height: 88rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: $primary;
 }
 
 .pay-dialog {

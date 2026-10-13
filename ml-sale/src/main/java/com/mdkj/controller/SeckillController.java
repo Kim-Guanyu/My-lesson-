@@ -138,6 +138,18 @@ public class SeckillController {
         return seckillService.prepareLoadTest(seckillId, stock);
     }
 
+    @Operation(summary = "运营 - 开启活动", description = "状态置为已开始，并按明细库存预热 Redis，小程序端即可抢购")
+    @PostMapping("start/{id}")
+    public boolean start(@PathVariable("id") Long id) {
+        return seckillService.start(id);
+    }
+
+    @Operation(summary = "运营 - 结束活动", description = "状态置为已结束，小程序端不再展示抢购按钮")
+    @PostMapping("stop/{id}")
+    public boolean stop(@PathVariable("id") Long id) {
+        return seckillService.stop(id);
+    }
+
 
 
 

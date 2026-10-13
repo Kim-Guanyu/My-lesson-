@@ -105,6 +105,13 @@ public class OrderDetailController {
         return orderDetailService.myCourses(dto);
     }
 
+    @Operation(summary = "查询 - 是否已购买", description = "判断用户是否已购买某课程，未购买用户只能试看")
+    @GetMapping("isPurchased")
+    public boolean isPurchased(@RequestParam("fkUserId") Long fkUserId,
+                               @RequestParam("fkCourseId") Long fkCourseId) {
+        return orderDetailService.isPurchased(fkUserId, fkCourseId);
+    }
+
     @Operation(summary = "修改 - 单条修改", description = "按主键修改一条订单明细记录")
     @PutMapping("update")
     public boolean update(@Validated @RequestBody OrderDetailUpdateDTO dto) {

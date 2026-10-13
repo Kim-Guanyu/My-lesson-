@@ -26,5 +26,10 @@ public interface BannerService extends IService<Banner> {
     List<Banner> top(Long n);
     String uploadBanner(MultipartFile newFile, Long id);
 
+    /**
+     * 列出 MinIO banner 目录下的所有图片文件名，供运营后台换图时选择。
+     */
+    List<String> minioImages();
+
 
 }

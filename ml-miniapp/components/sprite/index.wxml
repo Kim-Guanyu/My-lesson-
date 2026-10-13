@@ -1,0 +1,125 @@
+<!-- 悬浮小精灵：视频旁的 AI 学习助教 -->
+
+<!-- ===== 悬浮球 ===== -->
+<view class="sprite-ball {{visible ? 'sprite-ball-hidden' : ''}}" bind:tap="onOpen">
+  <!-- 呼吸光环：两层错开，营造脉动感 -->
+  <view class="ball-ring"></view>
+  <view class="ball-ring ball-ring-delay"></view>
+
+  <view class="ball-core">
+    <text class="ball-face">✨</text>
+  </view>
+
+  <!-- 环绕的小星点 -->
+  <view class="ball-spark ball-spark-1"></view>
+  <view class="ball-spark ball-spark-2"></view>
+</view>
+
+<!-- 首次进入的引导气泡，几秒后自动消失 -->
+<view class="sprite-hint {{showHint && !visible ? '' : 'sprite-hint-gone'}}" bind:tap="onOpen">
+  <text>有不懂的，问我～</text>
+</view>
+
+<!-- ===== 半屏抽屉 ===== -->
+<view class="sprite-mask {{visible ? 'sprite-mask-show' : ''}}" bind:tap="onClose" catch:touchmove="noop"></view>
+
+<view class="sprite-sheet {{visible ? 'sprite-sheet-show' : ''}}">
+  <!-- 顶部把手 -->
+  <view class="sheet-handle" bind:tap="onClose">
+    <view class="handle-bar"></view>
+  </view>
+
+  <!-- 头部：身份 + 当前播放位置，让用户知道小精灵清楚他停在哪 -->
+  <view class="sheet-header">
+    <view class="header-avatar">
+      <text class="header-avatar-face">✨</text>
+    </view>
+    <view class="header-info">
+      <view class="header-name">学习小精灵</view>
+      <view class="header-sub">{{contextLabel}}</view>
+    </view>
+    <view class="header-close" bind:tap="onClose">
+      <text class="close-icon">✕</text>
+    </view>
+  </view>
+
+  <!-- 消息区 -->
+  <scroll-view
+    class="sheet-body"
+    scroll-y
+    scroll-into-view="{{scrollIntoView}}"
+    scroll-with-animation
+    enhanced
+    show-scrollbar="{{false}}"
+  >
+    <view class="msg-list">
+      <view
+        class="msg {{item.role === 'user' ? 'msg-user' : 'msg-bot'}}"
+        wx:for="{{messages}}"
+        wx:key="id"
+        id="msg-{{item.id}}"
+      >
+        <view class="msg-avatar" wx:if="{{item.role !== 'user'}}">
+          <text class="msg-avatar-face">✨</text>
+        </view>
+
+        <view class="msg-main">
+          <view class="bubble">{{item.content}}</view>
+          <!-- 工具痕迹：让用户看到小精灵查了什么，回答更可信 -->
+          <view class="msg-tools" wx:if="{{item.toolLabels.length}}">
+            <text class="tool-chip" wx:for="{{item.toolLabels}}" wx:for-item="tool" wx:key="*this">{{tool}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 思考中：三点跳动 -->
+      <view class="msg msg-bot" wx:if="{{sending}}" id="msg-typing">
+        <view class="msg-avatar">
+          <text class="msg-avatar-face">✨</text>
+        </view>
+        <view class="msg-main">
+          <view class="bubble bubble-typing">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 快捷提问 -->
+  <scroll-view class="quick-bar" scroll-x enhanced show-scrollbar="{{false}}" wx:if="{{!sending}}">
+    <view class="quick-row">
+      <view
+        class="quick-chip"
+        wx:for="{{quickAsks}}"
+        wx:key="*this"
+        data-q="{{item}}"
+        bind:tap="onQuickAsk"
+      >{{item}}</view>
+    </view>
+  </scroll-view>
+
+  <!-- 输入栏：键盘弹起时用 padding 把输入框顶到键盘上方 -->
+  <view class="sheet-input" style="{{keyboardHeight ? 'padding-bottom:' + keyboardHeight + 'px' : ''}}">
+    <input
+      class="input-box"
+      value="{{question}}"
+      bindinput="onInput"
+      placeholder="问问小精灵…"
+      placeholder-class="input-placeholder"
+      confirm-type="send"
+      bindconfirm="onSend"
+      adjust-position="{{false}}"
+      bindfocus="onInputFocus"
+      bindblur="onInputBlur"
+    />
+    <view
+      class="send-btn {{question ? 'send-btn-on' : ''}}"
+      bind:tap="onSend"
+    >
+      <text class="send-icon">↑</text>
+    </view>
+  </view>
+</view>

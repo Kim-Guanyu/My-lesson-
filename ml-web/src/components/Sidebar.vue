@@ -26,7 +26,6 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useStore } from "vuex";
 import { menuGroups as staticMenuGroups } from "../router/menu";
-import { buildMenuGroups } from "../utils/menu";
 import { ROLE_GROUPS, hasAnyRole } from "../utils/permissions";
 
 const store = useStore();
@@ -36,14 +35,7 @@ const collapsed = computed(() => store.state.sidebarCollapsed);
 const activePath = computed(() => route.path);
 
 const roleRules = {
-  "用户管理": ROLE_GROUPS.user,
-  "课程管理": ROLE_GROUPS.course,
-  "营销管理": ROLE_GROUPS.marketing,
-  "订单管理": ROLE_GROUPS.order,
-  "User Management": ROLE_GROUPS.user,
-  "Course Management": ROLE_GROUPS.course,
-  "Marketing": ROLE_GROUPS.marketing,
-  "Orders": ROLE_GROUPS.order
+  "运营管理": ROLE_GROUPS.marketing
 };
 
 const filterGroupsByRole = (groups) => {
@@ -63,14 +55,9 @@ const filterGroupsByRole = (groups) => {
     .filter((group) => group.items.length > 0);
 };
 
-const menuGroups = computed(() => {
-  if (store.state.menus && store.state.menus.length) {
-    const dynamicGroups = buildMenuGroups(store.state.menus);
-    const hasDynamicItems = dynamicGroups.some((group) => group.items?.length);
-    return filterGroupsByRole(hasDynamicItems ? dynamicGroups : staticMenuGroups);
-  }
-  return filterGroupsByRole(staticMenuGroups);
-});
+// 只用前端静态菜单：后端 menu 表的 url 是 /Notice 这种大写单数形式，
+// 与前端路由 /notices 对不上，且 Menu 实体没有 apiBase 字段，走动态菜单会加载不到数据。
+const menuGroups = computed(() => filterGroupsByRole(staticMenuGroups));
 </script>
 
 <style scoped>

@@ -23,6 +23,7 @@ import com.mdkj.feign.CourseFeign;
 import com.mdkj.feign.UserFeign;
 import com.mdkj.mapper.OrderDetailMapper;
 import com.mdkj.service.CartService;
+import com.mdkj.service.OrderDetailService;
 import com.mdkj.util.ML;
 import com.mdkj.util.MyRedis;
 import com.mdkj.util.SeckillRedisKeys;
@@ -49,9 +50,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import static com.mdkj.entity.table.CartTableDef.CART;
 import static com.mdkj.entity.table.OrderDetailTableDef.ORDER_DETAIL;
@@ -78,6 +83,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
     private CourseFeign courseFeign;
     @Resource
     private CartService cartService;
+    @Resource
+    private OrderDetailService orderDetailService;
     @Resource
     private RocketMQTemplate rocketmqTemplate;
     @Resource
@@ -341,23 +348,38 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
     @Override
     public String prePay(PrePayDTO dto) {
         Long userId = dto.getFkUserId();
-        List<Long> courseIds = dto.getCourseIds();
+        // 入参去重：同一门课在一张订单里只应有一条明细
+        List<Long> courseIds = new ArrayList<>(new LinkedHashSet<>(dto.getCourseIds()));
 
-        // 仅检查已付款订单中的重复购买
-        List<Long> paidOrderIds = QueryChain.of(mapper)
-                .select(ORDER.ID)
-                .where(ORDER.FK_USER_ID.eq(userId))
-                .and(ORDER.STATUS.eq(ML.Order.PAID))
-                .listAs(Long.class);
-        if (CollUtil.isNotEmpty(paidOrderIds)) {
-            List<Long> purchasedCourseIds = QueryChain.of(orderDetailMapper)
-                    .select(ORDER_DETAIL.FK_COURSE_ID)
-                    .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
-                    .listAs(Long.class);
-            purchasedCourseIds.retainAll(courseIds);
-            if (CollUtil.isNotEmpty(purchasedCourseIds)) {
-                throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "订单明细重复");
+        // 已付款的课程不允许再次下单。
+        // 提示语要直接弹给小程序用户（ExceptionAdvice 把 coderMessage 放进 Result.message，
+        // api.js 再原样 toast），所以这里写人话而不是「订单明细重复」这类开发用词；
+        // wx.showToast 的标题约 7 个汉字就截断，课程 ID 只留在日志里。
+        List<Long> purchasedCourseIds = orderDetailService.filterPurchased(userId, courseIds);
+        if (CollUtil.isNotEmpty(purchasedCourseIds)) {
+            log.warn("用户 {} 重复购买课程 {}，已拦截", userId, purchasedCourseIds);
+            throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "您已购买该课程");
+        }
+
+        // 复用待付款订单：详情页的「立即购买」可以被反复点击，而 pay.js 的 cancelPay
+        // 只关弹窗、不通知后端。若每次都新建订单，同一门课会攒下多张待付款订单，
+        // 「我的订单」「我的课程」里就会出现重复明细。
+        Order unpaid = findUnpaidOrderByCourseSet(userId, courseIds);
+        if (ObjectUtil.isNotNull(unpaid)) {
+            if (isSameAmount(unpaid.getPayAmount(), dto.getPayAmount())) {
+                // 课程与金额都一致，直接复用原订单号，用户拿到的还是同一张支付宝码
+                log.info("用户 {} 已有相同课程与金额的待付款订单 {}，直接复用", userId, unpaid.getSn());
+                return unpaid.getSn();
             }
+            // 金额变了（例如购物车换了优惠券）。支付宝不接受同一 out_trade_no 改金额，
+            // 只能作废旧单再建新单——但仍然不会留下两张同课程的待付款订单。
+            UpdateChain.of(mapper)
+                    .set(ORDER.STATUS, ML.Order.CANCEL)
+                    .set(ORDER.UPDATED, LocalDateTime.now())
+                    .where(ORDER.SN.eq(unpaid.getSn()))
+                    .and(ORDER.STATUS.eq(ML.Order.UNPAID))
+                    .update();
+            log.info("用户 {} 待付款订单 {} 金额变化，已取消并重新下单", userId, unpaid.getSn());
         }
 
         // 组装 entity 实体类
@@ -422,6 +444,57 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         return sn;
     }
 
+    /**
+     * 查找用户名下课程集合与本次下单<b>完全一致</b>的待付款订单。
+     *
+     * <p>要求集合完全相等而不是「包含」，是因为部分重叠的两张订单（例如已有待付款的
+     * {A}、现在要买 {A,B}）金额与明细都不同，复用任何一张都是错的。</p>
+     *
+     * @param userId    用户主键
+     * @param courseIds 本次下单的课程主键集合（已去重）
+     * @return 匹配的待付款订单，没有则返回 {@code null}
+     */
+    private Order findUnpaidOrderByCourseSet(Long userId, List<Long> courseIds) {
+        // select id from `order` where fk_user_id = ? and status = 0
+        List<Long> unpaidOrderIds = QueryChain.of(mapper)
+                .select(ORDER.ID)
+                .where(ORDER.FK_USER_ID.eq(userId))
+                .and(ORDER.STATUS.eq(ML.Order.UNPAID))
+                .listAs(Long.class);
+        if (CollUtil.isEmpty(unpaidOrderIds)) {
+            return null;
+        }
+
+        // 一次性拉齐这些订单的明细，再按订单分组比对课程集合，避免逐单查询
+        // select * from order_detail where fk_order_id in (?)
+        List<OrderDetail> details = QueryChain.of(orderDetailMapper)
+                .where(ORDER_DETAIL.FK_ORDER_ID.in(unpaidOrderIds))
+                .list();
+        Map<Long, Set<Long>> courseIdsByOrderId = details.stream()
+                .collect(Collectors.groupingBy(
+                        OrderDetail::getFkOrderId,
+                        Collectors.mapping(OrderDetail::getFkCourseId, Collectors.toSet())));
+
+        Set<Long> wanted = new HashSet<>(courseIds);
+        for (Map.Entry<Long, Set<Long>> entry : courseIdsByOrderId.entrySet()) {
+            if (wanted.equals(entry.getValue())) {
+                return mapper.selectOneById(entry.getKey());
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 比较两个支付金额是否一致。订单金额是 decimal(8,2)，按分取整比较可以规避
+     * double 直接相等判断带来的精度误差。
+     */
+    private boolean isSameAmount(Double a, Double b) {
+        if (a == null || b == null) {
+            return a == null && b == null;
+        }
+        return Math.round(a * 100) == Math.round(b * 100);
+    }
+
     @Transactional(rollbackFor = Exception.class)
     @Override
     public String createSeckillOrder(OrderMessage orderMessage) {
@@ -454,20 +527,8 @@ public class OrderServiceImpl extends ServiceImpl<OrderMapper, Order>  implement
         }
 
         // 检查是否已购买该课程
-        List<Long> paidOrderIds = QueryChain.of(mapper)
-                .select(ORDER.ID)
-                .where(ORDER.FK_USER_ID.eq(fkUserId))
-                .and(ORDER.STATUS.eq(ML.Order.PAID))
-                .listAs(Long.class);
-        if (CollUtil.isNotEmpty(paidOrderIds)) {
-            List<Long> purchasedCourseIds = QueryChain.of(orderDetailMapper)
-                    .select(ORDER_DETAIL.FK_COURSE_ID)
-                    .where(ORDER_DETAIL.FK_ORDER_ID.in(paidOrderIds))
-                    .and(ORDER_DETAIL.FK_COURSE_ID.eq(fkCourseId))
-                    .listAs(Long.class);
-            if (CollUtil.isNotEmpty(purchasedCourseIds)) {
-                throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "您已购买该课程");
-            }
+        if (orderDetailService.isPurchased(fkUserId, fkCourseId)) {
+            throw new ServiceException(ResultCode.ORDER_DETAIL_REPEAT, "您已购买该课程");
         }
 
         Order order = new Order();
